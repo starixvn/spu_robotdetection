@@ -12,6 +12,8 @@ class Configuration(object):
         self.ENV = args[1]
 
         # define paths
+        self.root = self.getDataStrConfig(
+            self.config, 'DEFAULT', 'ROOT')
         self.save_dir_log = self.getDataStrConfig(
             self.config, 'DEFAULT', 'SAVE_DIR_LOG')
         self.log_name = self.getDataStrConfig(
@@ -36,10 +38,10 @@ class Configuration(object):
         self.app_name = self.getDataStrConfig(self.config, 'DEFAULT', 'APP_NAME')
 
         # define GroupBetting config
-        self.decisive_threshold = float(self.getDataStrConfig(
-            self.config, 'ROBOT_DETECTION_CONFIG', 'decisive_threshold'))
-        self.decisive_radius = float(self.getDataStrConfig(
-            self.config, 'ROBOT_DETECTION_CONFIG', 'decisive_radius'))
+        self.decisive_MaSS_lv1 = float(self.getDataStrConfig(
+            self.config, 'ROBOT_DETECTION_CONFIG', 'decisive_MaSS_lv1'))
+        self.decisive_MaSS_lv2 = float(self.getDataStrConfig(
+            self.config, 'ROBOT_DETECTION_CONFIG', 'decisive_MaSS_lv2'))
         self.min_samples = int(self.getDataStrConfig(
             self.config, 'ROBOT_DETECTION_CONFIG', 'min_samples'))
         self.num_outstanding = int(self.getDataStrConfig(
@@ -48,12 +50,16 @@ class Configuration(object):
             self.config, 'ROBOT_DETECTION_CONFIG', 'window_size'))
         # self.strtime_format = self.getDataStrConfig(
         #     self.config, 'ROBOT_DETECTION_CONFIG', 'strtime_format')
-        self.decisive_range_covered = float(self.getDataStrConfig(
-            self.config, 'ROBOT_DETECTION_CONFIG', 'decisive_range_covered'))
-        self.decisive_total_var = float(self.getDataStrConfig(
-            self.config, 'ROBOT_DETECTION_CONFIG', 'decisive_total_var'))
-        # self.num_batch_cus = int(self.getDataStrConfig(
-        #     self.config, 'GROUPBETTINGCONFIG', 'NUM_BATCH_CUS'))
+        self.decisive_TV_lv2 = float(self.getDataStrConfig(
+            self.config, 'ROBOT_DETECTION_CONFIG', 'decisive_TV_lv2'))
+        self.decisive_TV_lv1 = float(self.getDataStrConfig(
+            self.config, 'ROBOT_DETECTION_CONFIG', 'decisive_TV_lv1'))
+        self.ratio_criteria = int(self.getDataStrConfig(
+            self.config, 'ROBOT_DETECTION_CONFIG', 'ratio_criteria'))
+        self.is_detected_by_MBL = int(self.getDataStrConfig(
+            self.config, 'ROBOT_DETECTION_CONFIG', 'is_detected_by_MBL'))
+        self.is_save_all_in_one = int(self.getDataStrConfig(
+            self.config, 'ROBOT_DETECTION_CONFIG', 'is_save_all_in_one'))
         
         # define pool db
         # self.pool_name = self.getDataStrConfig(self.config, 'POOL_DB', 'POOL_NAME')

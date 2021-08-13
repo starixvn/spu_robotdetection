@@ -18,11 +18,12 @@ class Robot_Detection_Manager():
     @staticmethod
     def create_necessary_folders(day):
         try:
-            os.makedirs(config.results + day)
-            os.makedirs(config.results + day + "/" + config.small_total_var)
-            os.makedirs(config.results + day + "/" + config.big_total_var)
-            os.makedirs(config.results + day + "/" + config.more_than_one_cluster_good)
-            os.makedirs(config.results + day + "/" + config.more_than_one_cluster_pretty)
+            os.makedirs(config.root + config.results + day)
+            if not config.is_save_all_in_one:
+                os.makedirs(config.root + config.results + day + "/" + config.small_total_var)
+                os.makedirs(config.root + config.results + day + "/" + config.big_total_var)
+                os.makedirs(config.root + config.results + day + "/" + config.more_than_one_cluster_good)
+                os.makedirs(config.root + config.results + day + "/" + config.more_than_one_cluster_pretty)
         except FileExistsError:
             pass
     
@@ -40,20 +41,22 @@ class Robot_Detection_Manager():
     @staticmethod
     def run():
         start_running = time.time()
-        logging.basicConfig(filename = config.save_dir_log + config.log_name, level = logging.INFO)
-        data_files = sorted(os.listdir(config.data_path))
+        logging.basicConfig(filename =  config.root + config.save_dir_log + config.log_name, level = logging.INFO)
+        data_files = sorted(os.listdir(config.root + config.data_path))
         for data_file in data_files[:1]:
             full_info_all_user = []
             day = data_file.split(".")[0]
             Robot_Detection_Manager.create_necessary_folders(day)          
-            data = pd.read_csv(config.data_path + data_file)
+            data = pd.read_csv(config.root + config.data_path + data_file)
+            data = data.sort_values("transdate")
             ls = data.custid.unique()
+            # ls = ls[:2000]
             for custid in tqdm(ls, desc = f"Robot Detection is running for {day}"):
                 preparator = Prepare_Data_for_each_user(custid)
-                X, transformed_cus_data = preparator.run(config.window_size, "%Y-%m-%d %H:%M:%S.%f", data)
+                X, transformed_cus_data = preparator.run(config.window_size, "%Y-%m-%d %H:%M:%S.%f", data, config.is_detected_by_MBL)
                 if X is None:
                     continue
-                if X.shape[0] < config.window_size:
+                if X.shape[0] < config.ratio_criteria*config.min_samples:
                     continue
                 projected_data, pca_df, pca_dict = Projection_2D.run(X)
                 full_info_robot_user = Clustering_by_DBSCAN.run(data, transformed_cus_data, day, custid, projected_data, 
