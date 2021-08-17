@@ -43,12 +43,13 @@ class Robot_Detection_Manager():
         start_running = time.time()
         logging.basicConfig(filename =  config.root + config.save_dir_log + config.log_name, level = logging.INFO)
         data_files = sorted(os.listdir(config.root + config.data_path))
-        for data_file in data_files[:1]:
+        for data_file in data_files[29:30]:
             full_info_all_user = []
             day = data_file.split(".")[0]
             Robot_Detection_Manager.create_necessary_folders(day)          
             data = pd.read_csv(config.root + config.data_path + data_file)
             data = data.sort_values("transdate")
+            data = data.reset_index(drop = True)
             ls = data.custid.unique()
             # ls = ls[:2000]
             for custid in tqdm(ls, desc = f"Robot Detection is running for {day}"):

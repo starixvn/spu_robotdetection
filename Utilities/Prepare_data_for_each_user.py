@@ -1,6 +1,7 @@
 import numpy as np
 import datetime
 import pandas as pd
+import random
 
 class Prepare_Data_for_each_user():
     def __init__(self, custid):
@@ -64,7 +65,7 @@ class Prepare_Data_for_each_user():
                     # sequence_Characterized += coupled_transid_List[jj + kk - 1]
                     record[f"dimension_{kk}"] = time_interval_List[jj + kk - 1]
                 transformed_cus_data.append(record)
-                
+        random.shuffle(transformed_cus_data)      
         transformed_cus_data = pd.DataFrame(transformed_cus_data)
         return transformed_cus_data
     
