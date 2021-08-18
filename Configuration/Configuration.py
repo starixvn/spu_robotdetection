@@ -33,8 +33,8 @@ class Configuration(object):
         self.data_path = self.getDataStrConfig(
             self.config, 'DEFAULT', 'data_path')
         # self.backup = self.getDataStrConfig(self.config, 'DEFAULT', 'BACK_UP')
-        # self.errorFolder = self.getDataStrConfig(
-        #     self.config, 'DEFAULT', 'ERROR_FOLDER')
+        self.quickly_test = self.getDataStrConfig(
+            self.config, 'DEFAULT', 'quickly_test')
         self.app_name = self.getDataStrConfig(self.config, 'DEFAULT', 'APP_NAME')
 
         # define GroupBetting config
@@ -56,14 +56,12 @@ class Configuration(object):
             self.config, 'ROBOT_DETECTION_CONFIG', 'decisive_TV_lv1'))
         self.ratio_criteria = int(self.getDataStrConfig(
             self.config, 'ROBOT_DETECTION_CONFIG', 'ratio_criteria'))
-        self.is_detected_by_MBL = int(self.getDataStrConfig(
-            self.config, 'ROBOT_DETECTION_CONFIG', 'is_detected_by_MBL'))
+        self.quickly_test_by_MBL = int(self.getDataStrConfig(
+            self.config, 'ROBOT_DETECTION_CONFIG', 'quickly_test_by_MBL'))
+        self.is_clustered_by_MBL = int(self.getDataStrConfig(
+            self.config, 'ROBOT_DETECTION_CONFIG', 'is_clustered_by_MBL'))
         self.is_save_all_in_one = int(self.getDataStrConfig(
             self.config, 'ROBOT_DETECTION_CONFIG', 'is_save_all_in_one'))
-        
-        # define pool db
-        # self.pool_name = self.getDataStrConfig(self.config, 'POOL_DB', 'POOL_NAME')
-        # self.pool_size = int(self.getDataStrConfig(self.config, 'POOL_DB', 'POOL_SIZE'))
         
         # define information db SPU
         self.aimluser = self.getDataStrConfig(
