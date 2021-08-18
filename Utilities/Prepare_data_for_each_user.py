@@ -15,32 +15,33 @@ class Prepare_Data_for_each_user():
             time_interval_arr.append((xx - x).total_seconds())
         return time_interval_arr
     
-    def build_dictionary_pre_TIM(self, strtime_format, data, is_detected_by_MBL):
-        if is_detected_by_MBL:
-            cus_data = data[data.custid == self.custid][["custid", "transdate", "matchid", 
-                                                        "bettype", "liveindicator"]]
-            cus_data = cus_data.groupby(["matchid", "bettype", "liveindicator"])["transdate"] \
-                    .agg(lambda z: sorted(list(z)))
-            cus_data = cus_data.apply(lambda z: self.convert_datetime_to_seconds(z, strtime_format))
-        else:
-            cus_data = data[data.custid == self.custid][["custid", "transdate", "transid"]]
-            cus_data = cus_data.sort_values("transdate")
-            cus_data["coupled_transid"] = cus_data["transid"].map(str) + "_" + cus_data["transid"].map(str).shift(-1)
-            cus_data["datetime_object"] = cus_data["transdate"].apply(lambda z: datetime.datetime.strptime(z, 
-                                                                    strtime_format))
-            cus_data["diff_time"] = cus_data["datetime_object"] - cus_data["datetime_object"].shift(-1)
-            cus_data["time_interval"] = cus_data["diff_time"].apply(lambda z: - z.total_seconds())
-            cus_data = cus_data.dropna()
-            # cus_data = cus_data.set_index("coupled_transid")
-            # cus_data = cus_data["time_interval"]
-            coupled_transid_List = cus_data["coupled_transid"].to_list()
-            time_interval_List = cus_data["time_interval"].to_list()
-            cus_data = (coupled_transid_List, time_interval_List)
-        return cus_data
+    def build_dictionary_pre_TIM(self, strtime_format, data):
+        # if is_clustered_by_MBL:
+        cus_data_with_MBL = data[data.custid == self.custid][["custid", "transdate", "matchid", 
+                                                    "bettype", "liveindicator"]]
+        cus_data_with_MBL = cus_data_with_MBL.groupby(["matchid", "bettype", "liveindicator"])["transdate"] \
+                .agg(lambda z: sorted(list(z)))
+        cus_data_with_MBL = cus_data_with_MBL.apply(lambda z: self.convert_datetime_to_seconds(z, strtime_format))
+        # else:
+        cus_data_ignore_MBL = data[data.custid == self.custid][["custid", "transdate", "transid"]]
+        cus_data_ignore_MBL = cus_data_ignore_MBL.sort_values("transdate")
+        cus_data_ignore_MBL["coupled_transid"] = cus_data_ignore_MBL["transid"].map(str) + "_" + cus_data_ignore_MBL["transid"].map(str).shift(-1)
+        cus_data_ignore_MBL["datetime_object"] = cus_data_ignore_MBL["transdate"].apply(lambda z: datetime.datetime.strptime(z, 
+                                                                strtime_format))
+        cus_data_ignore_MBL["diff_time"] = cus_data_ignore_MBL["datetime_object"] - cus_data_ignore_MBL["datetime_object"].shift(-1)
+        cus_data_ignore_MBL["time_interval"] = cus_data_ignore_MBL["diff_time"].apply(lambda z: - z.total_seconds())
+        cus_data_ignore_MBL = cus_data_ignore_MBL.dropna()
+        # cus_data = cus_data.set_index("coupled_transid")
+        # cus_data = cus_data["time_interval"]
+        coupled_transid_List = cus_data_ignore_MBL["coupled_transid"].to_list()
+        time_interval_List = cus_data_ignore_MBL["time_interval"].to_list()
+        cus_data_ignore_MBL = (coupled_transid_List, time_interval_List)
+        return (cus_data_with_MBL, cus_data_ignore_MBL)
     
-    def build_dataframe_for_TIM(self, cus_data, window_size, is_detected_by_MBL):
+    def build_dataframe_for_TIM(self, cus_data, window_size, is_clustered_by_MBL):
         transformed_cus_data = []
-        if is_detected_by_MBL:
+        if is_clustered_by_MBL:
+            cus_data = cus_data[0]
             for comb, ti_arr in cus_data.items():
                 (matchid, bettype, liveindicator) = comb
                 if len(ti_arr) - window_size > 0:
@@ -50,31 +51,27 @@ class Prepare_Data_for_each_user():
                             record[f"dimension_{kk}"] = ti_arr[jj + kk - 1]
                         transformed_cus_data.append(record)
         else:
-            coupled_transid_List, time_interval_List = cus_data
-            # for coupled_transid, ti in cus_data.items():
+            coupled_transid_List, time_interval_List = cus_data[1]
             for jj in range(len(time_interval_List) - window_size + 1):
                 sequence_Characterized = coupled_transid_List[jj : jj + window_size + 1]
                 sequence_Characterized = "_".join(sequence_Characterized)
                 sequence_Characterized = sequence_Characterized.split("_")
-                sequence_Characterized = [int(x) for x in sequence_Characterized]
                 sequence_Characterized = set(sequence_Characterized)
-                sequence_Characterized = [str(x) for x in sequence_Characterized]
                 sequence_Characterized = "_".join(sequence_Characterized)
                 record = {"sequence_Characterized" : sequence_Characterized}
                 for kk in range(1, window_size + 1): 
-                    # sequence_Characterized += coupled_transid_List[jj + kk - 1]
                     record[f"dimension_{kk}"] = time_interval_List[jj + kk - 1]
                 transformed_cus_data.append(record)
         random.shuffle(transformed_cus_data)      
         transformed_cus_data = pd.DataFrame(transformed_cus_data)
         return transformed_cus_data
     
-    def get_Time_Interval_Matrix(self, transformed_cus_data, is_detected_by_MBL):
+    def get_Time_Interval_Matrix(self, transformed_cus_data, is_clustered_by_MBL):
         """
         >>> Input : aries | dataframe represents all dimensions and where they belong to
         """
         try:
-            if is_detected_by_MBL:
+            if is_clustered_by_MBL:
                 X = transformed_cus_data.iloc[:, [x for x in range(3, transformed_cus_data.shape[1])]].values
             else:
                 X = transformed_cus_data.iloc[:, [x for x in range(1, transformed_cus_data.shape[1])]].values
@@ -83,12 +80,12 @@ class Prepare_Data_for_each_user():
             max_by_row = np.expand_dims(max_by_row, axis = 1)
             X = X/max_by_row
             X = X[:, :-1] # this step needed because the last column = 1 for all rows
-        except  ValueError:
+        except ValueError:
             X = None
         return X
     
-    def run(self, window_size, strtime_format, data, is_detected_by_MBL):
-        cus_data = self.build_dictionary_pre_TIM(strtime_format, data, is_detected_by_MBL)
-        transformed_cus_data = self.build_dataframe_for_TIM(cus_data, window_size, is_detected_by_MBL)
-        X = self.get_Time_Interval_Matrix(transformed_cus_data, is_detected_by_MBL)
-        return X, transformed_cus_data
+    def run(self, window_size, strtime_format, data, is_clustered_by_MBL):
+        cus_data = self.build_dictionary_pre_TIM(strtime_format, data)
+        transformed_cus_data = self.build_dataframe_for_TIM(cus_data, window_size, is_clustered_by_MBL)
+        X = self.get_Time_Interval_Matrix(transformed_cus_data, is_clustered_by_MBL)
+        return X, transformed_cus_data, cus_data

@@ -87,10 +87,10 @@ class Clustering_by_DBSCAN():
         return is_robot
     
     @staticmethod
-    def get_best_combination(pca_df, transformed_cus_data, best_index, is_detected_by_MBL):
+    def get_best_combination(pca_df, transformed_cus_data, best_index, is_clustered_by_MBL):
         wish_list = pca_df[pca_df.clustering_labels == best_index].index.to_list()
         wished_data = transformed_cus_data.iloc[wish_list, :]
-        if is_detected_by_MBL:
+        if is_clustered_by_MBL:
             aa = wished_data.groupby(["matchid", "bettype", "liveindicator"]).size().to_dict()
             best_combination = max(aa, key = aa.get)
         else:
@@ -102,18 +102,18 @@ class Clustering_by_DBSCAN():
         return best_combination
     
     @staticmethod
-    def generate_data_to_Insert_DB(custid, full_info_robot_user, is_detected_by_MBL):      
+    def generate_data_to_Insert_DB(custid, full_info_robot_user, is_clustered_by_MBL):      
         gonna_be_inserted_to_DB_data = None
         if full_info_robot_user is not None:
             is_robot, best_combination, is_single_pattern, performance_metric, _, _ = full_info_robot_user
             if is_robot:
-                if is_detected_by_MBL:
+                if is_clustered_by_MBL:
                     (matchid, bettypeid, is_live) = best_combination
                     gonna_be_inserted_to_DB_data = {"C":int(custid), "M":matchid, "B":bettypeid, "LI":is_live, 
-                                                    "ISP":is_single_pattern, "DM":performance_metric, "TS":"By model MBL"}
+                                                    "ISP":is_single_pattern, "DM":performance_metric, "TS":""}
                 else:
                     transID_sequence = ",".join([str(v) for v in best_combination])
-                    gonna_be_inserted_to_DB_data = {"C":int(custid), "M":31646, "B":354, "LI":1, 
+                    gonna_be_inserted_to_DB_data = {"C":int(custid), "M":0, "B":0, "LI":0, 
                                                     "ISP":is_single_pattern, "DM":performance_metric, "TS":transID_sequence}
         return gonna_be_inserted_to_DB_data
 
@@ -137,7 +137,7 @@ class Clustering_by_DBSCAN():
             else:
                 is_single_pattern = 0                
             performance_metric, best_index = Clustering_by_DBSCAN.compute_performance_metric(projected_data, labels, is_single_pattern, radius)
-            best_combination = Clustering_by_DBSCAN.get_best_combination(pca_df, transformed_cus_data, best_index, config.is_detected_by_MBL)
+            best_combination = Clustering_by_DBSCAN.get_best_combination(pca_df, transformed_cus_data, best_index, config.is_clustered_by_MBL)
             is_robot = Clustering_by_DBSCAN.is_user_robot(performance_metric, is_single_pattern, config)            
             full_info_robot_user = (is_robot, best_combination, is_single_pattern, performance_metric, radius, config.min_samples)
         return full_info_robot_user
@@ -151,5 +151,5 @@ class Clustering_by_DBSCAN():
         pca_df, labels = Clustering_by_DBSCAN.do_cluster(pca_df, radius, config.min_samples, projected_data)
         full_info_robot_user = Clustering_by_DBSCAN.validate_results(transformed_cus_data, pca_df, projected_data, labels, radius, config)
         Clustering_by_DBSCAN.get_data_for_verification(custid, day, pca_df, data, full_info_robot_user, config)
-        gonna_be_inserted_to_DB_data = Clustering_by_DBSCAN.generate_data_to_Insert_DB(custid, full_info_robot_user, config.is_detected_by_MBL)                                                                                                           
+        gonna_be_inserted_to_DB_data = Clustering_by_DBSCAN.generate_data_to_Insert_DB(custid, full_info_robot_user, config.is_clustered_by_MBL)                                                                                                           
         return gonna_be_inserted_to_DB_data
