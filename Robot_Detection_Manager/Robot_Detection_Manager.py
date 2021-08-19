@@ -21,7 +21,11 @@ class Robot_Detection_Manager():
     def create_necessary_folders(day):
         try:
             os.makedirs(config.root + config.results + day)
-            os.makedirs(config.root + config.results + day + "/" + config.quickly_test)
+            if config.is_detected_by_new_method:
+                os.makedirs(config.root + config.results + day + "/" + config.easy_to_see)
+                os.makedirs(config.root + config.results + day + "/" + config.hard_to_see)
+            else:
+                os.makedirs(config.root + config.results + day + "/" + config.quickly_test)
             if not config.is_save_all_in_one:
                 os.makedirs(config.root + config.results + day + "/" + config.small_total_var)
                 os.makedirs(config.root + config.results + day + "/" + config.big_total_var)
@@ -74,31 +78,68 @@ class Robot_Detection_Manager():
         gonna_be_inserted_to_DB_data, best_combination = None, None
         quickly_test_outcomes = Supplementary_rules.is_Ticket_placement_so_fast(transformed_cus_data, cus_data, quickly_test_by_MBL)
         if quickly_test_outcomes is not None:
-            best_combination, others_for_reference = quickly_test_outcomes
-            (matchid, bettypeid, is_live) = best_combination
-            gonna_be_inserted_to_DB_data = {"C":int(custid), "M":matchid, "B":bettypeid, "LI":is_live, 
-                                            "ISP":"", "DM":"", "TS":others_for_reference}
+            if quickly_test_by_MBL:
+                best_combination, others_for_reference = quickly_test_outcomes
+                (matchid, bettypeid, is_live) = best_combination
+                gonna_be_inserted_to_DB_data = {"C":int(custid), "M":matchid, "B":bettypeid, "LI":is_live, 
+                                                "ISP":"", "DM":"", "TS":others_for_reference}
+            else:
+                best_combination = quickly_test_outcomes
+                # (matchid, bettypeid, is_live) = best_combination
+                gonna_be_inserted_to_DB_data = {"C":int(custid), "M":0, "B":0, "LI":0, 
+                                                "ISP":"", "DM":"", "TS":best_combination}
+                # print("best_combination = ", best_combination)
+                best_combination = [int(x) for x in best_combination.split(",") if x != ""]  
         return gonna_be_inserted_to_DB_data, best_combination
+    
+    @staticmethod
+    def detect_by_Old_method(day, ls, data, full_info_all_user):
+        for custid in tqdm(ls, desc = f"Robot Detection is running for {day}"):
+            preparator = Prepare_Data_for_each_user(custid)
+            X, transformed_cus_data, cus_data = preparator.run(config.window_size, "%Y-%m-%d %H:%M:%S.%f", data, config.is_clustered_by_MBL)
+            gonna_be_inserted_to_DB_data, best_combination = Robot_Detection_Manager.quickly_test_for_a_user(custid, transformed_cus_data, 
+                                                                                                            cus_data, config.quickly_test_by_MBL)
+            if gonna_be_inserted_to_DB_data is None:
+                gonna_be_inserted_to_DB_data = Robot_Detection_Manager.do_cluster_for_a_user(custid, data, day, X, transformed_cus_data)
+                if gonna_be_inserted_to_DB_data is None:
+                    continue
+            else:
+                Data_Verification.get_CSV_format_data(custid, day, data, best_combination, None, None, config, quickly_test_running = 1)
+            full_info_all_user.append(gonna_be_inserted_to_DB_data)
+        return full_info_all_user
+
+    @staticmethod
+    def detect_by_New_method(day, ls, data, full_info_all_user, minimum_suspicious_transID):
+        for custid in tqdm(ls, desc = f"Robot Detection is running for {day}"):
+            preparator = Prepare_Data_for_each_user(custid)
+            _, _, cus_data = preparator.run(config.window_size, "%Y-%m-%d %H:%M:%S.%f", data, config.is_clustered_by_MBL)
+            # extraordinary_signal = 0
+            # if custid == 22367404:
+            #     extraordinary_signal = 1
+            detecting_outcomes = Supplementary_rules.detect_by_pattern_of_Time_Interval(cus_data)
+            if detecting_outcomes is None:
+                continue
+            sequence_Characterized, easy_to_see, num_suspicious_transID = detecting_outcomes
+            if num_suspicious_transID < minimum_suspicious_transID:
+                continue
+            gonna_be_inserted_to_DB_data = {"C":int(custid), "M":0, "B":0, "LI":0, 
+                                            "ISP":"", "DM":"", "TS":sequence_Characterized}
+            best_combination = [int(x) for x in sequence_Characterized.split(",") if x != ""]
+            Data_Verification.get_CSV_format_data(custid, day, data, best_combination, None, None, config, 0, 1, easy_to_see)
+            full_info_all_user.append(gonna_be_inserted_to_DB_data)
+        return full_info_all_user
 
     @staticmethod
     def run():
         start_running = time.time()
         logging.basicConfig(filename =  config.root + config.save_dir_log + config.log_name, level = logging.INFO)
         data_files = sorted(os.listdir(config.root + config.data_path))
-        for data_file in data_files[24:25]:
-            day, ls, data, full_info_all_user = Robot_Detection_Manager.prepare_data(data_file)
-            for custid in tqdm(ls, desc = f"Robot Detection is running for {day}"):
-                preparator = Prepare_Data_for_each_user(custid)
-                X, transformed_cus_data, cus_data = preparator.run(config.window_size, "%Y-%m-%d %H:%M:%S.%f", data, config.is_clustered_by_MBL)
-                gonna_be_inserted_to_DB_data, best_combination = Robot_Detection_Manager.quickly_test_for_a_user(custid, transformed_cus_data, 
-                                                                                                                cus_data, config.quickly_test_by_MBL)
-                if gonna_be_inserted_to_DB_data is None:
-                    gonna_be_inserted_to_DB_data = Robot_Detection_Manager.do_cluster_for_a_user(custid, data, day, X, transformed_cus_data)
-                    if gonna_be_inserted_to_DB_data is None:
-                        continue
-                else:
-                    Data_Verification.get_CSV_format_data(custid, day, data, best_combination, None, None, config, quickly_test_running = 1)
-                full_info_all_user.append(gonna_be_inserted_to_DB_data)
+        for data_file in data_files:
+            day, ls, data, full_info_all_user = Robot_Detection_Manager.prepare_data(data_file)       
+            if config.is_detected_by_new_method:
+                full_info_all_user = Robot_Detection_Manager.detect_by_New_method(day, ls, data, full_info_all_user, config.minimum_suspicious_transID)
+            else:
+                full_info_all_user = Robot_Detection_Manager.detect_by_Old_method(day, ls, data, full_info_all_user)
             Robot_Detection_Manager.insert_robot_user_to_DB(full_info_all_user, day)
             print("\nNumber of robot users for %s has been added is %s\n" % (day, len(full_info_all_user)))
         print("\nTOTAL IMPLEMENTATION TIME = %.0f seconds" % (time.time() - start_running))

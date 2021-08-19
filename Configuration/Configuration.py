@@ -35,6 +35,10 @@ class Configuration(object):
         # self.backup = self.getDataStrConfig(self.config, 'DEFAULT', 'BACK_UP')
         self.quickly_test = self.getDataStrConfig(
             self.config, 'DEFAULT', 'quickly_test')
+        self.easy_to_see = self.getDataStrConfig(
+            self.config, 'DEFAULT', 'easy_to_see')
+        self.hard_to_see = self.getDataStrConfig(
+            self.config, 'DEFAULT', 'hard_to_see')
         self.app_name = self.getDataStrConfig(self.config, 'DEFAULT', 'APP_NAME')
 
         # define GroupBetting config
@@ -62,6 +66,10 @@ class Configuration(object):
             self.config, 'ROBOT_DETECTION_CONFIG', 'is_clustered_by_MBL'))
         self.is_save_all_in_one = int(self.getDataStrConfig(
             self.config, 'ROBOT_DETECTION_CONFIG', 'is_save_all_in_one'))
+        self.is_detected_by_new_method = int(self.getDataStrConfig(
+            self.config, 'ROBOT_DETECTION_CONFIG', 'is_detected_by_new_method'))
+        self.minimum_suspicious_transID = int(self.getDataStrConfig(
+            self.config, 'ROBOT_DETECTION_CONFIG', 'minimum_suspicious_transID'))
         
         # define information db SPU
         self.aimluser = self.getDataStrConfig(

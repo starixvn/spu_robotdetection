@@ -26,9 +26,16 @@ class Data_Verification():
         plt.close()
     
     @staticmethod
-    def get_CSV_format_data(custid, day, data, best_combination, is_single_pattern, performance_metric, config, quickly_test_running = 0):
+    def get_CSV_format_data(custid, day, data, best_combination, is_single_pattern, performance_metric, config, 
+                            quickly_test_running = 0, is_detected_by_new_method = 1, easy_to_see = 1):
         desired_cols = ["matchid", "bettype", "liveindicator", "transdate", "sporttype"]
-        if quickly_test_running:
+        if is_detected_by_new_method:
+            verified_data = data[data.transid.isin(best_combination)][desired_cols]
+            if easy_to_see:
+                verified_data.to_csv(config.root + config.results + day +  "/"  + config.easy_to_see + str(custid) + ".csv", index = False)
+            else:
+                verified_data.to_csv(config.root + config.results + day +  "/"  + config.hard_to_see + str(custid) + ".csv", index = False)
+        elif quickly_test_running:
             if config.quickly_test_by_MBL:
                 (matchid, bettypeid, is_live) = best_combination
                 verified_data = data[(data.matchid == matchid) & (data.bettype == bettypeid) 
