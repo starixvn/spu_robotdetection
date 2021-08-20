@@ -13,6 +13,7 @@ from Utilities.Clustering_by_DBSCAN import Clustering_by_DBSCAN
 from DataAccess.DataAccessConnection import spu_aiml
 from DataAccess.DataAccessConnection import DataAccessConnection
 from DataAccess.Model.SPU_AIML.SPU_InsertRobotUsersDAModel import SPU_InsertRobotUsersDAModel
+from DataAccess.Model.SPU_AIML.SPU_GetDistinctRobotUserDAModel import SPU_GetDistinctRobotUserDAModel
 from DataAccess.CoreDA.BaseDA import BaseDA
 
 class Robot_Detection_Manager():
@@ -44,6 +45,15 @@ class Robot_Detection_Manager():
                 chunk = json.dumps(chunk)
                 ip_param = SPU_InsertRobotUsersDAModel(chunk, day)
                 BaseDA.execute("SPU_AIML_InsertRobotUsers", spu_aiml, ip_param, connection_spu)
+
+    @staticmethod
+    def get_distinct_robot_user():
+        connection_spu = DataAccessConnection(spu_aiml)
+        ip_param = SPU_GetDistinctRobotUserDAModel()
+        robot_users = BaseDA.execute("SPU_AIML_GetDistinctRobotUser", spu_aiml, ip_param, connection_spu)
+        robot_users = robot_users[0] # List in List
+        robot_users = [x[0] for x in robot_users] # [(21061103,), . . .]
+        return robot_users
 
     @staticmethod
     def prepare_data(data_file):
@@ -110,7 +120,10 @@ class Robot_Detection_Manager():
 
     @staticmethod
     def detect_by_New_method(day, ls, data, full_info_all_user, minimum_suspicious_transID):
+        captured_robot_users = Robot_Detection_Manager.get_distinct_robot_user()
         for custid in tqdm(ls, desc = f"Robot Detection is running for {day}"):
+            if custid in captured_robot_users:
+                continue
             preparator = Prepare_Data_for_each_user(custid)
             _, _, cus_data = preparator.run(config.window_size, "%Y-%m-%d %H:%M:%S.%f", data, config.is_clustered_by_MBL)
             # extraordinary_signal = 0
@@ -120,7 +133,7 @@ class Robot_Detection_Manager():
             if detecting_outcomes is None:
                 continue
             sequence_Characterized, easy_to_see, num_suspicious_transID = detecting_outcomes
-            if num_suspicious_transID < minimum_suspicious_transID:
+            if num_suspicious_transID <= minimum_suspicious_transID:
                 continue
             gonna_be_inserted_to_DB_data = {"C":int(custid), "M":0, "B":0, "LI":0, 
                                             "ISP":"", "DM":"", "TS":sequence_Characterized}
