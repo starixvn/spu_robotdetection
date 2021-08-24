@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
-from Utilities.Utilities import merge_and_make_distinct_TransID_Sequences, process_further_time_difference, check_pattern
+from Utilities.Utilities import merge_and_make_distinct_TransID_Sequences, substract_2_sucessive_elements_and_merge_transID
+from Utilities.Utilities import add_2_sucessive_elements_and_merge_transID, check_pattern
+from Utilities.Utilities import find_chain_of_periods
 class Supplementary_rules():
     @staticmethod
     def is_Ticket_placement_so_fast(transformed_cus_data, cus_data, quickly_test_by_MBL):
@@ -36,24 +38,33 @@ class Supplementary_rules():
         # cus_data["2_element_TransID_Sequence"] = coupled_transid_List
         # cus_data["first_order_Time_Difference"] = time_interval_List
         coupled_transid_List, time_interval_List = np.array(coupled_transid_List), np.array(time_interval_List)
-        xx, _ = check_pattern(coupled_transid_List, time_interval_List)
-        
+        Y, _ = check_pattern(coupled_transid_List, time_interval_List)
+        if extraordinary_signal:
+            print("time_interval_List = %s" % time_interval_List)
         # _1st_filter = cus_data[cus_data["first_order_Time_Difference"] <= 1]
         # coupled_transid_List = _1st_filter["2_element_TransID_Sequence"].to_list()
-        sequence_Characterized, num_suspicious_transID = merge_and_make_distinct_TransID_Sequences(xx)
+        sequence_Characterized, num_suspicious_transID = merge_and_make_distinct_TransID_Sequences(Y)
+        # print("\nsequence_Characterized = %s" % sequence_Characterized)
         if sequence_Characterized == "":
             # print("coupled_transid_List = %s" % coupled_transid_List, "time_interval_List = %s" % time_interval_List, "\n\n", sep = "\n")
-            # for _ in range(num_iterations):
-            coupled_transid_List, time_interval_List = process_further_time_difference(coupled_transid_List, time_interval_List)
-            xx, _ = check_pattern(coupled_transid_List, time_interval_List)
-                # if extraordinary_signal:
-                #     print("coupled_transid_List = %s" % coupled_transid_List, "time_interval_List = %s" % time_interval_List, "\n\n", sep = "\n")
-                # if len(xx) == 0:
-                #     break
-            sequence_Characterized, num_suspicious_transID = merge_and_make_distinct_TransID_Sequences(xx)
+            # Find Period Chains
+            period_chain = find_chain_of_periods(time_interval_List, extraordinary_signal)
+            if period_chain == "":
+                return None
+            # ============================================================================================================
+            coupled_transid_List, time_interval_List = substract_2_sucessive_elements_and_merge_transID(coupled_transid_List, 
+                                                                                                        time_interval_List)
+            Z, _ = check_pattern(coupled_transid_List, time_interval_List)
+            sequence_Characterized, num_suspicious_transID = merge_and_make_distinct_TransID_Sequences(Z)
+            # ============================================================================================================
+            # coupled_transid_List, time_interval_List = add_2_sucessive_elements_and_merge_transID(coupled_transid_List, 
+            #                                                                                         time_interval_List)
+            # T, _ = check_pattern(coupled_transid_List, time_interval_List, is_third_order = 1)
+            # sequence_Characterized, num_suspicious_transID = merge_and_make_distinct_TransID_Sequences(T)
+            # ============================================================================================================           
             if sequence_Characterized == "":
                 return None
-            else:
-                return sequence_Characterized, 0, num_suspicious_transID
+            # else:
+            return sequence_Characterized, 0, num_suspicious_transID, period_chain
         else:
-            return sequence_Characterized, 1, num_suspicious_transID
+            return sequence_Characterized, 1, num_suspicious_transID , ""

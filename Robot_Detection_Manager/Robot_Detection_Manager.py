@@ -120,23 +120,23 @@ class Robot_Detection_Manager():
 
     @staticmethod
     def detect_by_New_method(day, ls, data, full_info_all_user, minimum_suspicious_transID):
-        captured_robot_users = Robot_Detection_Manager.get_distinct_robot_user()
+        # captured_robot_users = Robot_Detection_Manager.get_distinct_robot_user()
         for custid in tqdm(ls, desc = f"Robot Detection is running for {day}"):
-            if custid in captured_robot_users:
-                continue
+            # if custid in captured_robot_users:
+            #     continue
             preparator = Prepare_Data_for_each_user(custid)
             _, _, cus_data = preparator.run(config.window_size, "%Y-%m-%d %H:%M:%S.%f", data, config.is_clustered_by_MBL)
-            # extraordinary_signal = 0
-            # if custid == 22367404:
+            extraordinary_signal = 0
+            # if custid == 47992438:
             #     extraordinary_signal = 1
-            detecting_outcomes = Supplementary_rules.detect_by_pattern_of_Time_Interval(cus_data)
+            detecting_outcomes = Supplementary_rules.detect_by_pattern_of_Time_Interval(cus_data, extraordinary_signal)
             if detecting_outcomes is None:
                 continue
-            sequence_Characterized, easy_to_see, num_suspicious_transID = detecting_outcomes
+            sequence_Characterized, easy_to_see, num_suspicious_transID, period_chain = detecting_outcomes
             if num_suspicious_transID <= minimum_suspicious_transID:
                 continue
             gonna_be_inserted_to_DB_data = {"C":int(custid), "M":0, "B":0, "LI":0, 
-                                            "ISP":"", "DM":"", "TS":sequence_Characterized}
+                                            "ISP":"", "DM":"", "TS":sequence_Characterized, "PC": period_chain}
             best_combination = [int(x) for x in sequence_Characterized.split(",") if x != ""]
             Data_Verification.get_CSV_format_data(custid, day, data, best_combination, None, None, config, 0, 1, easy_to_see)
             full_info_all_user.append(gonna_be_inserted_to_DB_data)
@@ -147,8 +147,10 @@ class Robot_Detection_Manager():
         start_running = time.time()
         logging.basicConfig(filename =  config.root + config.save_dir_log + config.log_name, level = logging.INFO)
         data_files = sorted(os.listdir(config.root + config.data_path))
+        # for data_file in data_files[:1]: # for quick test of programm
         for data_file in data_files:
-            day, ls, data, full_info_all_user = Robot_Detection_Manager.prepare_data(data_file)       
+            day, ls, data, full_info_all_user = Robot_Detection_Manager.prepare_data(data_file)  
+            # ls = ls[:5000] # for quick test of programm    
             if config.is_detected_by_new_method:
                 full_info_all_user = Robot_Detection_Manager.detect_by_New_method(day, ls, data, full_info_all_user, config.minimum_suspicious_transID)
             else:
