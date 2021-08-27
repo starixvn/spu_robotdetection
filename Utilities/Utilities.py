@@ -99,3 +99,45 @@ def find_chain_of_periods(time_interval_List, extraordinary_signal = None):
     if extraordinary_signal:
         print("\nperiod_chain = %s" % period_chain)
     return period_chain
+
+def assign_into_PeriodRange(custID, sequence_Characterized, period_chain):
+    if period_chain == "":
+        # if sequence_Characterized == "":
+        #     super_dangerous_tickets = 77
+        # else:
+        super_dangerous_tickets = sequence_Characterized.split(",")
+        super_dangerous_tickets = len(super_dangerous_tickets) // 2
+        gonna_be_inserted_to_DB_data = {"C":int(custID), "M":"", "B":"", "LI":"", "ISP":"", "DM":"", "TS":"",
+                                        "PR0":super_dangerous_tickets, 
+                                        "PR1":0, 
+                                        "PR2":0, 
+                                        "PR3":0, 
+                                        "PR4":0, 
+                                        "PR5":0, 
+                                        "PR6":0, 
+                                        "PR7":0, 
+                                        "PR8":0, 
+                                        "PR9":0, 
+                                        "PR10":0}
+    else:
+        gonna_be_inserted_to_DB_data = {"C":int(custID), "M":"", "B":"", "LI":"", "ISP":"", "DM":"", "TS":"",
+                                        "PR0":0, 
+                                        "PR1":0, 
+                                        "PR2":0, 
+                                        "PR3":0, 
+                                        "PR4":0, 
+                                        "PR5":0, 
+                                        "PR6":0, 
+                                        "PR7":0, 
+                                        "PR8":0, 
+                                        "PR9":0, 
+                                        "PR10":0}
+        # PeriodChain = cus_data["PeriodChain"]
+        PeriodChain = period_chain.split(",")
+        PeriodChain = [float(x) for x in PeriodChain]
+        for element in PeriodChain:
+            order_of_range = int(element // 5) + 1
+            if order_of_range > 10:
+                order_of_range = 10
+            gonna_be_inserted_to_DB_data["PR" + str(order_of_range)] += 1
+    return gonna_be_inserted_to_DB_data

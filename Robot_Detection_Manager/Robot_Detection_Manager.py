@@ -15,6 +15,7 @@ from DataAccess.DataAccessConnection import DataAccessConnection
 from DataAccess.Model.SPU_AIML.SPU_InsertRobotUsersDAModel import SPU_InsertRobotUsersDAModel
 from DataAccess.Model.SPU_AIML.SPU_GetDistinctRobotUserDAModel import SPU_GetDistinctRobotUserDAModel
 from DataAccess.CoreDA.BaseDA import BaseDA
+from Utilities.Utilities import assign_into_PeriodRange
 
 class Robot_Detection_Manager():
 
@@ -119,7 +120,7 @@ class Robot_Detection_Manager():
         return full_info_all_user
 
     @staticmethod
-    def detect_by_New_method(day, ls, data, full_info_all_user, minimum_suspicious_transID):
+    def detect_by_New_method(day, ls, data, full_info_all_user, minimum_suspicious_transID, is_assigned_to_PeriodRange = 0):
         # captured_robot_users = Robot_Detection_Manager.get_distinct_robot_user()
         for custid in tqdm(ls, desc = f"Robot Detection is running for {day}"):
             # if custid in captured_robot_users:
@@ -135,8 +136,11 @@ class Robot_Detection_Manager():
             sequence_Characterized, easy_to_see, num_suspicious_transID, period_chain = detecting_outcomes
             if num_suspicious_transID <= minimum_suspicious_transID:
                 continue
-            gonna_be_inserted_to_DB_data = {"C":int(custid), "M":0, "B":0, "LI":0, 
-                                            "ISP":"", "DM":"", "TS":sequence_Characterized, "PC": period_chain}
+            if is_assigned_to_PeriodRange:
+                gonna_be_inserted_to_DB_data = assign_into_PeriodRange(custid, sequence_Characterized, period_chain)
+            else:
+                gonna_be_inserted_to_DB_data = {"C":int(custid), "M":0, "B":0, "LI":0, 
+                                                "ISP":"", "DM":"", "TS":sequence_Characterized, "PC": period_chain}
             best_combination = [int(x) for x in sequence_Characterized.split(",") if x != ""]
             Data_Verification.get_CSV_format_data(custid, day, data, best_combination, None, None, config, 0, 1, easy_to_see)
             full_info_all_user.append(gonna_be_inserted_to_DB_data)
@@ -150,9 +154,11 @@ class Robot_Detection_Manager():
         # for data_file in data_files[:1]: # for quick test of programm
         for data_file in data_files:
             day, ls, data, full_info_all_user = Robot_Detection_Manager.prepare_data(data_file)  
-            # ls = ls[:5000] # for quick test of programm    
+            # ls = ls[:2000] # for quick test of programm    
             if config.is_detected_by_new_method:
-                full_info_all_user = Robot_Detection_Manager.detect_by_New_method(day, ls, data, full_info_all_user, config.minimum_suspicious_transID)
+                full_info_all_user = Robot_Detection_Manager.detect_by_New_method(day, ls, data, full_info_all_user, 
+                                                                                config.minimum_suspicious_transID,
+                                                                                config.is_assigned_to_PeriodRange)
             else:
                 full_info_all_user = Robot_Detection_Manager.detect_by_Old_method(day, ls, data, full_info_all_user)
             Robot_Detection_Manager.insert_robot_user_to_DB(full_info_all_user, day)

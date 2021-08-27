@@ -70,6 +70,8 @@ class Configuration(object):
             self.config, 'ROBOT_DETECTION_CONFIG', 'is_detected_by_new_method'))
         self.minimum_suspicious_transID = int(self.getDataStrConfig(
             self.config, 'ROBOT_DETECTION_CONFIG', 'minimum_suspicious_transID'))
+        self.is_assigned_to_PeriodRange = int(self.getDataStrConfig(
+            self.config, 'ROBOT_DETECTION_CONFIG', 'is_assigned_to_PeriodRange'))
         
         # define information db SPU
         self.aimluser = self.getDataStrConfig(
