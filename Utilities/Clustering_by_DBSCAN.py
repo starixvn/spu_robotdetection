@@ -105,7 +105,7 @@ class Clustering_by_DBSCAN():
     def generate_data_to_Insert_DB(custid, full_info_robot_user, is_clustered_by_MBL):      
         gonna_be_inserted_to_DB_data = None
         if full_info_robot_user is not None:
-            is_robot, best_combination, is_single_pattern, performance_metric, _, _ = full_info_robot_user
+            is_robot, best_combination, is_single_pattern, performance_metric, _, _, _ = full_info_robot_user
             if is_robot:
                 if is_clustered_by_MBL:
                     (matchid, bettypeid, is_live) = best_combination
@@ -118,12 +118,12 @@ class Clustering_by_DBSCAN():
         return gonna_be_inserted_to_DB_data
 
     @staticmethod
-    def get_data_for_verification(custid, day, pca_df, data, full_info_robot_user, config) :
+    def get_data_for_verification(custid, day, pca_df, data, full_info_robot_user, config, quickly_test_running) :
         try:
-            is_robot, best_combination, is_single_pattern, performance_metric, radius, min_samples = full_info_robot_user
+            is_robot, best_combination, is_single_pattern, performance_metric, radius, min_samples, best_index = full_info_robot_user
             if is_robot:
-                Data_Verification.get_visual_data(custid, day, pca_df, is_single_pattern, performance_metric, radius, min_samples, config)
-                Data_Verification.get_CSV_format_data(custid, day, data, best_combination, is_single_pattern, performance_metric, config) 
+                Data_Verification.get_visual_data(custid, day, pca_df, is_single_pattern, performance_metric, radius, min_samples, config, best_index)
+                Data_Verification.get_CSV_format_data(custid, day, data, best_combination, is_single_pattern, performance_metric, config, quickly_test_running) 
         except TypeError:
             pass
 
@@ -139,7 +139,7 @@ class Clustering_by_DBSCAN():
             performance_metric, best_index = Clustering_by_DBSCAN.compute_performance_metric(projected_data, labels, is_single_pattern, radius)
             best_combination = Clustering_by_DBSCAN.get_best_combination(pca_df, transformed_cus_data, best_index, config.is_clustered_by_MBL)
             is_robot = Clustering_by_DBSCAN.is_user_robot(performance_metric, is_single_pattern, config)            
-            full_info_robot_user = (is_robot, best_combination, is_single_pattern, performance_metric, radius, config.min_samples)
+            full_info_robot_user = (is_robot, best_combination, is_single_pattern, performance_metric, radius, config.min_samples, best_index)
         return full_info_robot_user
     
     @staticmethod
@@ -150,6 +150,6 @@ class Clustering_by_DBSCAN():
         radius = Clustering_by_DBSCAN.decide_appropriate_radius(results, config.num_outstanding)
         pca_df, labels = Clustering_by_DBSCAN.do_cluster(pca_df, radius, config.min_samples, projected_data)
         full_info_robot_user = Clustering_by_DBSCAN.validate_results(transformed_cus_data, pca_df, projected_data, labels, radius, config)
-        Clustering_by_DBSCAN.get_data_for_verification(custid, day, pca_df, data, full_info_robot_user, config)
+        Clustering_by_DBSCAN.get_data_for_verification(custid, day, pca_df, data, full_info_robot_user, config, 0)
         gonna_be_inserted_to_DB_data = Clustering_by_DBSCAN.generate_data_to_Insert_DB(custid, full_info_robot_user, config.is_clustered_by_MBL)                                                                                                           
         return gonna_be_inserted_to_DB_data

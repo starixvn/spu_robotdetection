@@ -24,7 +24,7 @@ class Supplementary_rules():
                 coupled_transid_List, time_interval_List = cus_data[1]
                 coupled_transid_List, time_interval_List = np.array(coupled_transid_List), np.array(time_interval_List)
                 coupled_transid_List = coupled_transid_List[time_interval_List < 1]
-                sequence_Characterized = merge_and_make_distinct_TransID_Sequences(coupled_transid_List)
+                sequence_Characterized, _ = merge_and_make_distinct_TransID_Sequences(coupled_transid_List)
                 if sequence_Characterized == "":
                     return None
                 return sequence_Characterized
@@ -32,7 +32,7 @@ class Supplementary_rules():
             return None
     
     @staticmethod
-    def detect_by_pattern_of_Time_Interval(cus_data, extraordinary_signal = None):
+    def detect_by_TSSM(cus_data, based_on_STD, extraordinary_signal = None):
         coupled_transid_List, time_interval_List = cus_data[1]
         # cus_data = pd.DataFrame()
         # cus_data["2_element_TransID_Sequence"] = coupled_transid_List
@@ -48,7 +48,7 @@ class Supplementary_rules():
         if sequence_Characterized == "":
             # print("coupled_transid_List = %s" % coupled_transid_List, "time_interval_List = %s" % time_interval_List, "\n\n", sep = "\n")
             # Find Period Chains
-            period_chain = find_chain_of_periods(time_interval_List, extraordinary_signal)
+            period_chain = find_chain_of_periods(time_interval_List, based_on_STD, extraordinary_signal)
             if period_chain == "":
                 return None
             # ============================================================================================================

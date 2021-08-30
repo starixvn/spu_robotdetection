@@ -52,8 +52,6 @@ class Configuration(object):
             self.config, 'ROBOT_DETECTION_CONFIG', 'num_outstanding'))
         self.window_size = int(self.getDataStrConfig(
             self.config, 'ROBOT_DETECTION_CONFIG', 'window_size'))
-        # self.strtime_format = self.getDataStrConfig(
-        #     self.config, 'ROBOT_DETECTION_CONFIG', 'strtime_format')
         self.decisive_TV_lv2 = float(self.getDataStrConfig(
             self.config, 'ROBOT_DETECTION_CONFIG', 'decisive_TV_lv2'))
         self.decisive_TV_lv1 = float(self.getDataStrConfig(
@@ -72,6 +70,8 @@ class Configuration(object):
             self.config, 'ROBOT_DETECTION_CONFIG', 'minimum_suspicious_transID'))
         self.is_assigned_to_PeriodRange = int(self.getDataStrConfig(
             self.config, 'ROBOT_DETECTION_CONFIG', 'is_assigned_to_PeriodRange'))
+        self.based_on_STD = int(self.getDataStrConfig(
+            self.config, 'ROBOT_DETECTION_CONFIG', 'based_on_STD'))
         
         # define information db SPU
         self.aimluser = self.getDataStrConfig(

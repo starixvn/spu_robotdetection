@@ -82,14 +82,52 @@ def find_patterning_time_interval(groups, time_interval_List):
         attacks.append(time_interval_List[starter:starter + length])
     return attacks
 
-def find_chain_of_periods(time_interval_List, extraordinary_signal = None):
+def find_group_based_on_STD(time_interval_List, extraordinary_signal):
+    groups = []
+    starter = time_interval_List[0]
+    group = [starter]
+    terminator = len(time_interval_List) - 1
+    for ii in range(1, len(time_interval_List)):
+        element = time_interval_List[ii]
+        if extraordinary_signal:
+            print("\nelement = %s" % element)
+
+        specimen = group + [element]
+
+        std = np.std(specimen)
+        if std <= 1:
+            group = specimen
+            if extraordinary_signal:
+                print("Expanding! group = " + str(group), sep = "\n")
+            if ii == terminator:
+                groups.append(group)
+        else:
+            population = len(group)
+            if population >= 2:
+                
+                groups.append(group)
+                group = [element]
+            if extraordinary_signal:
+                print("\nDeal! group = " + str(group))
+                print("\nNew group = " + str(group))
+                print("\ngroups = " + str(groups), sep = "\n")
+            else:
+                continue
+    if extraordinary_signal:
+        print("\nTerminated! groups = " + str(groups), sep = "\n")
+    return groups
+
+def find_chain_of_periods(time_interval_List, based_on_STD, extraordinary_signal = None):
     xxx = np.abs(time_interval_List[1:] - time_interval_List[:-1])
     if extraordinary_signal:
         print("\nxxx = %s" % xxx)
     candidate_index = np.argwhere(xxx <= 1)[:, 0]
     if len(candidate_index) == 0:
         return ""
-    groups = find_index_of_attack(candidate_index, extraordinary_signal)
+    if based_on_STD:
+        groups = find_group_based_on_STD(candidate_index, extraordinary_signal)
+    else:
+        groups = find_index_of_attack(candidate_index, extraordinary_signal)
     attacks = find_patterning_time_interval(groups, time_interval_List)
     periods = []
     for attack in attacks:
