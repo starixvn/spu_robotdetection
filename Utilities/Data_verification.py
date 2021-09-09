@@ -34,6 +34,7 @@ class Data_Verification():
             best_combination = [int(x) for x in best_combination.split(",") if x != ""]
             verified_data = data[data.transid.isin(best_combination)][desired_cols]
         else:
+            # print("best_combination = %s" % best_combination)
             (matchid, bettypeid, is_live) = best_combination
             verified_data = data[(data.matchid == matchid) & (data.bettype == bettypeid) 
                                 & (data.liveindicator == is_live) & (data.custid == custid)][desired_cols]

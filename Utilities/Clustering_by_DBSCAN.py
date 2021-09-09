@@ -97,8 +97,10 @@ class Clustering_by_DBSCAN():
             best_combination = wished_data["sequence_Characterized"].to_list()
             best_combination = "_".join(best_combination)
             best_combination = best_combination.split("_")
-            best_combination = [int(x) for x in best_combination]
+            # best_combination = [int(x) for x in best_combination]
             best_combination = set(best_combination)
+            best_combination = ",".join(best_combination)
+            # print("best_combination = %s" % best_combination)
         return best_combination
     
     @staticmethod
@@ -112,9 +114,9 @@ class Clustering_by_DBSCAN():
                     gonna_be_inserted_to_DB_data = {"C":int(custid), "M":matchid, "B":bettypeid, "LI":is_live, 
                                                     "ISP":is_single_pattern, "DM":performance_metric, "TS":""}
                 else:
-                    transID_sequence = ",".join([str(v) for v in best_combination])
+                    # transID_sequence = ",".join([str(v) for v in best_combination])
                     gonna_be_inserted_to_DB_data = {"C":int(custid), "M":0, "B":0, "LI":0, 
-                                                    "ISP":is_single_pattern, "DM":performance_metric, "TS":transID_sequence}
+                                                    "ISP":is_single_pattern, "DM":performance_metric, "TS":best_combination}
         return gonna_be_inserted_to_DB_data
 
     @staticmethod

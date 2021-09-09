@@ -25,6 +25,7 @@ class Supplementary_rules():
                 coupled_transid_List, time_interval_List = np.array(coupled_transid_List), np.array(time_interval_List)
                 coupled_transid_List = coupled_transid_List[time_interval_List < 1]
                 sequence_Characterized, _ = merge_and_make_distinct_TransID_Sequences(coupled_transid_List)
+                # print("sequence_Characterized = %s" % sequence_Characterized)
                 if sequence_Characterized == "":
                     return None
                 return sequence_Characterized

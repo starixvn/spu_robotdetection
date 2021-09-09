@@ -95,6 +95,7 @@ class Robot_Detection_Manager():
                 gonna_be_inserted_to_DB_data = {"C":int(custid), "M":matchid, "B":bettypeid, "LI":is_live, 
                                                 "ISP":"", "DM":"", "TS":others_for_reference}
             else:
+                # print("best_combination = %s" % best_combination)
                 best_combination = quickly_test_outcomes
                 gonna_be_inserted_to_DB_data = {"C":int(custid), "M":0, "B":0, "LI":0, 
                                                 "ISP":"", "DM":"", "TS":best_combination}
@@ -145,10 +146,10 @@ class Robot_Detection_Manager():
         start_running = time.time()
         logging.basicConfig(filename =  config.root + config.save_dir_log + config.log_name, level = logging.INFO)
         data_files = sorted(os.listdir(config.root + config.data_path))
-        for data_file in data_files[24:25]: # for quick test of programm
-        # for data_file in data_files:
+        # for data_file in data_files[24:25]: # for quick test of programm
+        for data_file in data_files:
             day, ls, data, full_info_all_user = Robot_Detection_Manager.prepare_data(data_file)  
-            ls = ls[:5000] # for quick test of programm    
+            # ls = ls[:500] # for quick test of programm    
             if config.is_detected_by_new_method:
                 full_info_all_user = Robot_Detection_Manager.detect_by_New_method(day, ls, data, full_info_all_user, 
                                                                                 config.minimum_suspicious_transID,
