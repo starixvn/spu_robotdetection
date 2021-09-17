@@ -64,6 +64,8 @@ class Configuration(object):
             self.config, 'ROBOT_DETECTION_CONFIG', 'is_clustered_by_MBL'))
         self.is_save_all_in_one = int(self.getDataStrConfig(
             self.config, 'ROBOT_DETECTION_CONFIG', 'is_save_all_in_one'))
+        self.data_for_verification_got_saved = int(self.getDataStrConfig(
+            self.config, 'ROBOT_DETECTION_CONFIG', 'data_for_verification_got_saved'))
         self.is_detected_by_new_method = int(self.getDataStrConfig(
             self.config, 'ROBOT_DETECTION_CONFIG', 'is_detected_by_new_method'))
         self.minimum_suspicious_transID = int(self.getDataStrConfig(

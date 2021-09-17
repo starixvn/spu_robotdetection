@@ -49,7 +49,7 @@ class Supplementary_rules():
         if sequence_Characterized == "":
             # print("coupled_transid_List = %s" % coupled_transid_List, "time_interval_List = %s" % time_interval_List, "\n\n", sep = "\n")
             # Find Period Chains
-            period_chain = find_chain_of_periods(time_interval_List, based_on_STD, extraordinary_signal)
+            period_chain, robot_stats_info = find_chain_of_periods(coupled_transid_List, time_interval_List, based_on_STD, extraordinary_signal)
             if period_chain == "":
                 return None
             # ============================================================================================================
@@ -66,6 +66,6 @@ class Supplementary_rules():
             if sequence_Characterized == "":
                 return None
             # else:
-            return sequence_Characterized, 0, num_suspicious_transID, period_chain
+            return sequence_Characterized, 0, num_suspicious_transID, period_chain , robot_stats_info
         else:
-            return sequence_Characterized, 1, num_suspicious_transID , ""
+            return sequence_Characterized, 1, num_suspicious_transID , "", {}
