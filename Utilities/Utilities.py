@@ -1,7 +1,10 @@
-import enum
+# import enum
 import logging
 import pandas as pd
 import numpy as np
+from Configuration.Configuration import config
+from Helper.notify import Telegram_send_message
+
 def notify_logging(mess, isInfo = False):
     if isInfo:
         logging.info(mess)
@@ -9,23 +12,46 @@ def notify_logging(mess, isInfo = False):
         logging.error(mess)
     #Notifier.send_message(mess)
 
-def merge_and_make_distinct_TransID_Sequences(coupled_transid_List):
-    sequence_Characterized = "_".join(coupled_transid_List)
-    sequence_Characterized = sequence_Characterized.split("_")
-    sequence_Characterized = set(sequence_Characterized)
-    num_suspicious_transID = len(sequence_Characterized)
-    sequence_Characterized = ",".join(sequence_Characterized)
-    return sequence_Characterized, num_suspicious_transID
+def merge_and_make_distinct_TransID_Sequences(coupled_transid_List, array_name):
+    try:
+        sequence_Characterized = "_".join(coupled_transid_List)
+        sequence_Characterized = sequence_Characterized.split("_")
+        sequence_Characterized = set(sequence_Characterized)
+        num_suspicious_transID = len(sequence_Characterized)
+        sequence_Characterized = ",".join(sequence_Characterized)
+        return sequence_Characterized, num_suspicious_transID
+    except Exception as e:
+        message = "%s | %s | ERROR | phase Insights_Extraction_by_Users | stage Running_Algorithm | function merge_and_make_distinct_TransID_Sequences for %s : %s %s" % (config.app_name, 
+                                                                                                                                                                        config.ENV,
+                                                                                                                                                                        array_name, 
+                                                                                                                                                                        type(e).__name__, 
+                                                                                                                                                                        e.args)
+        print(message)
+        logging.error(message)
+        if config.agree_to_send_message:
+            Telegram_send_message(message)
+        raise ValueError
 
 def substract_2_sucessive_elements_and_merge_transID(coupled_transid_List, time_interval_List):
-    cus_data = pd.DataFrame()
-    cus_data["ID"], cus_data["TI"] = coupled_transid_List, time_interval_List
-    cus_data["merged_ID"] = cus_data["ID"] + "_" + cus_data["ID"].shift(-1)
-    cus_data["Difference"] = cus_data["TI"] - cus_data["TI"].shift(-1)
-    cus_data["Difference"] = abs(cus_data["Difference"])
-    cus_data = cus_data.dropna()
-    xx, yy = cus_data["merged_ID"].values, cus_data["Difference"].values
-    return xx, yy
+    try:
+        cus_data = pd.DataFrame()
+        cus_data["ID"], cus_data["TI"] = coupled_transid_List, time_interval_List
+        cus_data["merged_ID"] = cus_data["ID"] + "_" + cus_data["ID"].shift(-1)
+        cus_data["Difference"] = cus_data["TI"] - cus_data["TI"].shift(-1)
+        cus_data["Difference"] = abs(cus_data["Difference"])
+        cus_data = cus_data.dropna()
+        xx, yy = cus_data["merged_ID"].values, cus_data["Difference"].values
+        return xx, yy
+    except Exception as e:
+        message = "%s | %s | ERROR | phase Insights_Extraction_by_Users | stage Running_Algorithm | function substract_2_sucessive_elements_and_merge_transID : %s %s" % (config.app_name, 
+                                                                                                                                                                            config.ENV, 
+                                                                                                                                                                            type(e).__name__, 
+                                                                                                                                                                            e.args)
+        print(message)
+        logging.error(message)
+        if config.agree_to_send_message:
+            Telegram_send_message(message)
+        raise ValueError
 
 def add_2_sucessive_elements_and_merge_transID(coupled_transid_List, time_interval_List):
     cus_data = pd.DataFrame()
@@ -37,14 +63,26 @@ def add_2_sucessive_elements_and_merge_transID(coupled_transid_List, time_interv
     xx, yy = cus_data["merged_ID"].values, cus_data["Summation"].values
     return xx, yy
 
-def check_pattern(coupled_transid_List, time_interval_List, is_third_order = 0):
-    if is_third_order:
-        xx = coupled_transid_List[time_interval_List <= 2]
-        yy = time_interval_List[time_interval_List <= 2]
-    else:
-        xx = coupled_transid_List[time_interval_List <= 1]
-        yy = time_interval_List[time_interval_List <= 1]
-    return xx, yy
+def check_pattern(coupled_transid_List, time_interval_List, array_name, is_third_order = 0):
+    try:
+        if is_third_order:
+            xx = coupled_transid_List[time_interval_List <= 2]
+            yy = time_interval_List[time_interval_List <= 2]
+        else:
+            xx = coupled_transid_List[time_interval_List <= 1]
+            yy = time_interval_List[time_interval_List <= 1]
+        return xx, yy
+    except Exception as e:
+        message = "%s | %s | ERROR | phase Insights_Extraction_by_Users | stage Running_Algorithm | function check_pattern for array %s : %s %s" % (config.app_name, 
+                                                                                                                                                    config.ENV,
+                                                                                                                                                    array_name, 
+                                                                                                                                                    type(e).__name__, 
+                                                                                                                                                    e.args)
+        print(message)
+        logging.error(message)
+        if config.agree_to_send_message:
+            Telegram_send_message(message)
+        raise ValueError
 
 def find_index_of_attack(candidate_index, extraordinary_signal):
     groups = []
@@ -75,7 +113,7 @@ def find_index_of_attack(candidate_index, extraordinary_signal):
                 print("\nfind_group_based_on_TSSM | Terminated! groups = " + str(groups), sep = "\n")
     return groups
 
-def find_patterning_time_interval(groups, coupled_transid_List, time_interval_List, extraordinary_signal):
+def find_patterning_time_interval(groups, coupled_transid_List, time_interval_List, array_name, extraordinary_signal):
     attacks = []
     evidences = []
     for group in groups:
@@ -83,7 +121,7 @@ def find_patterning_time_interval(groups, coupled_transid_List, time_interval_Li
         length = len(group) + 1
         attacks.append(time_interval_List[starter:starter + length])
         transid_List = coupled_transid_List[starter:starter + length]
-        transid_List, _ = merge_and_make_distinct_TransID_Sequences(transid_List)
+        transid_List, _ = merge_and_make_distinct_TransID_Sequences(transid_List, array_name)
         evidences.append(transid_List)
     if extraordinary_signal:
         print("\ngroups = " + str(groups), "\nattacks = " + str(attacks), "\nevidences = " + str(evidences))
@@ -123,30 +161,45 @@ def find_group_based_on_STD(time_interval_List, extraordinary_signal):
         print("\nfind_group_based_on_STD | Terminated! groups = " + str(groups))
     return groups
 
-def find_chain_of_periods(coupled_transid_List, time_interval_List, based_on_STD, extraordinary_signal = None):
-    xxx = np.abs(time_interval_List[1:] - time_interval_List[:-1])
-    if extraordinary_signal:
-        print("\nxxx = %s" % xxx)
-    candidate_index = np.argwhere(xxx <= 1)[:, 0]
-    # coupled_transid_List = 
-    if len(candidate_index) == 0:
-        return "", {}
-    if based_on_STD:
-        groups = find_group_based_on_STD(candidate_index, extraordinary_signal)
-    else:
-        groups = find_index_of_attack(candidate_index, extraordinary_signal)
-    attacks, evidences = find_patterning_time_interval(groups, coupled_transid_List, time_interval_List, extraordinary_signal)
-    periods = []
-    robot_stats_info = {}
-    for idx, attack in enumerate(attacks):
-        # periods.append(int(np.floor(np.median(attack))))
-        average_period = round(np.mean(attack), 3)
-        periods.append(average_period)
-        robot_stats_info[average_period] = evidences[idx]
-    period_chain = ",".join([str(x) for x in periods])
-    if extraordinary_signal:
-        print("\nperiod_chain = %s" % period_chain, "\nrobot_stats_info = " + str(robot_stats_info))
-    return period_chain, robot_stats_info
+def find_chain_of_periods(coupled_transid_List, time_interval_List, based_on_STD, array_name, extraordinary_signal = None):
+    try:
+        xxx = np.abs(time_interval_List[1:] - time_interval_List[:-1])
+        if extraordinary_signal:
+            print("\nxxx = %s" % xxx)
+        candidate_index = np.argwhere(xxx <= 1)[:, 0]
+        # coupled_transid_List = 
+        if len(candidate_index) == 0:
+            return "", {}
+        if based_on_STD:
+            groups = find_group_based_on_STD(candidate_index, extraordinary_signal)
+        else:
+            groups = find_index_of_attack(candidate_index, extraordinary_signal)
+        attacks, evidences = find_patterning_time_interval(groups, 
+                                                            coupled_transid_List, 
+                                                            time_interval_List,
+                                                            array_name, 
+                                                            extraordinary_signal)
+        periods = []
+        robot_stats_info = {}
+        for idx, attack in enumerate(attacks):
+            # periods.append(int(np.floor(np.median(attack))))
+            average_period = round(np.mean(attack), 3)
+            periods.append(average_period)
+            robot_stats_info[average_period] = evidences[idx]
+        period_chain = ",".join([str(x) for x in periods])
+        if extraordinary_signal:
+            print("\nperiod_chain = %s" % period_chain, "\nrobot_stats_info = " + str(robot_stats_info))
+        return period_chain, robot_stats_info
+    except Exception as e:
+        message = "%s | %s | ERROR | phase Insights_Extraction_by_Users | stage Running_Algorithm | function find_chain_of_periods : %s %s" % (config.app_name, 
+                                                                                                                                                config.ENV, 
+                                                                                                                                                type(e).__name__, 
+                                                                                                                                                e.args)
+        print(message)
+        logging.error(message)
+        if config.agree_to_send_message:
+            Telegram_send_message(message)
+        raise ValueError
 
 def truncate_trans_sequence(sequence_Characterized, max_length = 2000):
     sequence_length = len(sequence_Characterized)
@@ -159,93 +212,105 @@ def truncate_trans_sequence(sequence_Characterized, max_length = 2000):
         return sequence_Characterized
 
 def assign_into_PeriodRange(custID, sequence_Characterized, period_chain, robot_stats_info):
-    if period_chain == "":
-        # if sequence_Characterized == "":
-        #     super_dangerous_tickets = 77
-        # else:
-        super_dangerous_tickets = sequence_Characterized.split(",")
-        super_dangerous_attacks = len(super_dangerous_tickets) // 2
-        # gonna_be_inserted_to_TableA_data = {"C":int(custID), "M":"", "B":"", "LI":"", "ISP":"", "DM":"", "TS":"",
-        #                                     "PR0":super_dangerous_tickets, 
-        #                                     "PR1":0, 
-        #                                     "PR2":0, 
-        #                                     "PR3":0, 
-        #                                     "PR4":0, 
-        #                                     "PR5":0, 
-        #                                     "PR6":0, 
-        #                                     "PR7":0, 
-        #                                     "PR8":0, 
-        #                                     "PR9":0, 
-        #                                     "PR10":0}
-        # gonna_be_inserted_to_TableB_data = {"C":int(custID),
-        #                                     "PR0":sequence_Characterized, 
-        #                                     "PR1":"", 
-        #                                     "PR2":"", 
-        #                                     "PR3":"", 
-        #                                     "PR4":"", 
-        #                                     "PR5":"", 
-        #                                     "PR6":"", 
-        #                                     "PR7":"", 
-        #                                     "PR8":"", 
-        #                                     "PR9":"", 
-        #                                     "PR10":""}
-        sequence_Characterized = truncate_trans_sequence(sequence_Characterized)
-        gonna_be_inserted_to_DB_data = [{"C":int(custID), "R":0, "SC":super_dangerous_attacks, "TL":sequence_Characterized}]
-    else:
-        # gonna_be_inserted_to_TableA_data = {"C":int(custID), "M":"", "B":"", "LI":"", "ISP":"", "DM":"", "TS":"",
-        #                                     "PR0":0, 
-        #                                     "PR1":0, 
-        #                                     "PR2":0, 
-        #                                     "PR3":0, 
-        #                                     "PR4":0, 
-        #                                     "PR5":0, 
-        #                                     "PR6":0, 
-        #                                     "PR7":0, 
-        #                                     "PR8":0, 
-        #                                     "PR9":0, 
-        #                                     "PR10":0}
-        # gonna_be_inserted_to_TableB_data = {"C":int(custID),
-        #                                     "PR0":"", 
-        #                                     "PR1":"", 
-        #                                     "PR2":"", 
-        #                                     "PR3":"", 
-        #                                     "PR4":"", 
-        #                                     "PR5":"", 
-        #                                     "PR6":"", 
-        #                                     "PR7":"", 
-        #                                     "PR8":"", 
-        #                                     "PR9":"", 
-        #                                     "PR10":""}
-        # PeriodChain = cus_data["PeriodChain"] 
-        # print("\n\ncustID = " + str(custID), "\nsequence_Characterized = " + sequence_Characterized, "\nperiod_chain = " + period_chain)
-        # print("\nrobot_stats_info = " + str(robot_stats_info))
-        gonna_be_inserted_to_DB_data = {}
-        PeriodChain = period_chain.split(",")
-        PeriodChain = [float(x) for x in PeriodChain]
-        for element in PeriodChain:
-            # print("element = " + str(element))
-            order_of_range = int(element // 5) + 1
-            if order_of_range > 10:
-                order_of_range = 10
-            if order_of_range not in gonna_be_inserted_to_DB_data:
-                appended_sequence = robot_stats_info[element]
-                gonna_be_inserted_to_DB_data[order_of_range] = {"C":int(custID), "R":order_of_range, "SC":1, "TL":appended_sequence}
-            else:
-                gonna_be_inserted_to_DB_data[order_of_range]["SC"] += 1
-                appended_sequence = "," + robot_stats_info[element]
-                gonna_be_inserted_to_DB_data[order_of_range]["TL"] += appended_sequence
-            # print("gonna_be_inserted_to_DB_data = " + str(gonna_be_inserted_to_DB_data))
-            # gonna_be_inserted_to_DB_data["PR" + str(order_of_range)] += 1
-            # available_sequence = gonna_be_inserted_to_TableB_data["PR" + str(order_of_range)]
-            # if available_sequence == "":
-            #     appended_sequence = robot_stats_info[element]
+    try:
+        if period_chain == "":
+            # if sequence_Characterized == "":
+            #     super_dangerous_tickets = 77
             # else:
-            #     appended_sequence = "," + robot_stats_info[element]
-            # gonna_be_inserted_to_TableB_data["PR" + str(order_of_range)] += appended_sequence
-        for key, value in gonna_be_inserted_to_DB_data.items():
-            sequence_Characterized = value["TL"]
+            super_dangerous_tickets = sequence_Characterized.split(",")
+            super_dangerous_attacks = len(super_dangerous_tickets) // 2
+            # gonna_be_inserted_to_TableA_data = {"C":int(custID), "M":"", "B":"", "LI":"", "ISP":"", "DM":"", "TS":"",
+            #                                     "PR0":super_dangerous_tickets, 
+            #                                     "PR1":0, 
+            #                                     "PR2":0, 
+            #                                     "PR3":0, 
+            #                                     "PR4":0, 
+            #                                     "PR5":0, 
+            #                                     "PR6":0, 
+            #                                     "PR7":0, 
+            #                                     "PR8":0, 
+            #                                     "PR9":0, 
+            #                                     "PR10":0}
+            # gonna_be_inserted_to_TableB_data = {"C":int(custID),
+            #                                     "PR0":sequence_Characterized, 
+            #                                     "PR1":"", 
+            #                                     "PR2":"", 
+            #                                     "PR3":"", 
+            #                                     "PR4":"", 
+            #                                     "PR5":"", 
+            #                                     "PR6":"", 
+            #                                     "PR7":"", 
+            #                                     "PR8":"", 
+            #                                     "PR9":"", 
+            #                                     "PR10":""}
             sequence_Characterized = truncate_trans_sequence(sequence_Characterized)
-            gonna_be_inserted_to_DB_data[key]["TL"] = sequence_Characterized
-        gonna_be_inserted_to_DB_data = list(gonna_be_inserted_to_DB_data.values())
-    # return gonna_be_inserted_to_TableA_data, gonna_be_inserted_to_TableB_data
-    return gonna_be_inserted_to_DB_data
+            gonna_be_inserted_to_DB_data = [{"C":int(custID), "R":0, "SC":super_dangerous_attacks, "TL":sequence_Characterized}]
+        else:
+            # gonna_be_inserted_to_TableA_data = {"C":int(custID), "M":"", "B":"", "LI":"", "ISP":"", "DM":"", "TS":"",
+            #                                     "PR0":0, 
+            #                                     "PR1":0, 
+            #                                     "PR2":0, 
+            #                                     "PR3":0, 
+            #                                     "PR4":0, 
+            #                                     "PR5":0, 
+            #                                     "PR6":0, 
+            #                                     "PR7":0, 
+            #                                     "PR8":0, 
+            #                                     "PR9":0, 
+            #                                     "PR10":0}
+            # gonna_be_inserted_to_TableB_data = {"C":int(custID),
+            #                                     "PR0":"", 
+            #                                     "PR1":"", 
+            #                                     "PR2":"", 
+            #                                     "PR3":"", 
+            #                                     "PR4":"", 
+            #                                     "PR5":"", 
+            #                                     "PR6":"", 
+            #                                     "PR7":"", 
+            #                                     "PR8":"", 
+            #                                     "PR9":"", 
+            #                                     "PR10":""}
+            # PeriodChain = cus_data["PeriodChain"] 
+            # print("\n\ncustID = " + str(custID), "\nsequence_Characterized = " + sequence_Characterized, "\nperiod_chain = " + period_chain)
+            # print("\nrobot_stats_info = " + str(robot_stats_info))
+            gonna_be_inserted_to_DB_data = {}
+            PeriodChain = period_chain.split(",")
+            PeriodChain = [float(x) for x in PeriodChain]
+            for element in PeriodChain:
+                # print("element = " + str(element))
+                order_of_range = int(element // 5) + 1
+                if order_of_range > 10:
+                    order_of_range = 10
+                if order_of_range not in gonna_be_inserted_to_DB_data:
+                    appended_sequence = robot_stats_info[element]
+                    gonna_be_inserted_to_DB_data[order_of_range] = {"C":int(custID), "R":order_of_range, "SC":1, "TL":appended_sequence}
+                else:
+                    gonna_be_inserted_to_DB_data[order_of_range]["SC"] += 1
+                    appended_sequence = "," + robot_stats_info[element]
+                    gonna_be_inserted_to_DB_data[order_of_range]["TL"] += appended_sequence
+                # print("gonna_be_inserted_to_DB_data = " + str(gonna_be_inserted_to_DB_data))
+                # gonna_be_inserted_to_DB_data["PR" + str(order_of_range)] += 1
+                # available_sequence = gonna_be_inserted_to_TableB_data["PR" + str(order_of_range)]
+                # if available_sequence == "":
+                #     appended_sequence = robot_stats_info[element]
+                # else:
+                #     appended_sequence = "," + robot_stats_info[element]
+                # gonna_be_inserted_to_TableB_data["PR" + str(order_of_range)] += appended_sequence
+            for key, value in gonna_be_inserted_to_DB_data.items():
+                sequence_Characterized = value["TL"]
+                sequence_Characterized = truncate_trans_sequence(sequence_Characterized)
+                gonna_be_inserted_to_DB_data[key]["TL"] = sequence_Characterized
+            gonna_be_inserted_to_DB_data = list(gonna_be_inserted_to_DB_data.values())
+        # return gonna_be_inserted_to_TableA_data, gonna_be_inserted_to_TableB_data
+        return gonna_be_inserted_to_DB_data
+    except Exception as e:
+        message = "%s | %s | ERROR | phase Insights_Extraction_by_Users | stage Running_Algorithm | function assign_into_PeriodRange for %s : %s %s" % (config.app_name, 
+                                                                                                                                                        config.ENV,
+                                                                                                                                                        custID, 
+                                                                                                                                                        type(e).__name__, 
+                                                                                                                                                        e.args)
+        print(message)
+        logging.error(message)
+        if config.agree_to_send_message:
+            Telegram_send_message(message)
+        raise ValueError

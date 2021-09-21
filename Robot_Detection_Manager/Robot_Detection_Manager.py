@@ -3,6 +3,7 @@ import os
 import json
 import logging
 import time
+import datetime
 from tqdm import tqdm
 from Configuration.Configuration import config
 from Utilities.Data_verification import Data_Verification
@@ -10,11 +11,12 @@ from Utilities.Supplementary_rules import Supplementary_rules
 from Utilities.Prepare_data_for_each_user import Prepare_Data_for_each_user
 from Utilities.Projection_2D import Projection_2D
 from Utilities.Clustering_by_DBSCAN import Clustering_by_DBSCAN
-from DataAccess.DataAccessConnection import spu_aiml
+from DataAccess.DataAccessConnection import spu_aiml, cts_datacenter
 from DataAccess.DataAccessConnection import DataAccessConnection
-from DataAccess.Model.SPU_AIML.SPU_InsertRobotUsersDAModel import SPU_InsertRobotUsersDAModel
+from Helper.notify import Telegram_send_message
 from DataAccess.Model.SPU_AIML.SPU_RD_InsertRobotStatsDAModel import SPU_RD_InsertRobotStatsDAModel
-from DataAccess.Model.SPU_AIML.SPU_GetDistinctRobotUserDAModel import SPU_GetDistinctRobotUserDAModel
+from DataAccess.Model.CTS_DataCenter.CTS_DC_RobotDetection_InsertDAModel import CTS_DC_RobotDetection_InsertDAModel
+from DataAccess.Model.SPU_AIML.SPU_AIML_RD_ComputeRobotUsersDAModel import SPU_AIML_RD_ComputeRobotUsersDAModel
 from DataAccess.CoreDA.BaseDA import BaseDA
 from Utilities.Utilities import assign_into_PeriodRange
 
@@ -52,16 +54,75 @@ class Robot_Detection_Manager():
     #             BaseDA.execute("SPU_AIML_InsertRobotUsers", spu_aiml, ip_param, connection_spu)
     @staticmethod
     def insert_robot_user_to_DB(full_info_all_user, day):
-        connection_spu = DataAccessConnection(spu_aiml)
-        chunks = [full_info_all_user[x:x + config.chunk_size] for x in \
-                    range(0, len(full_info_all_user), config.chunk_size)]
-        if config.insert_to_aiml:
-            for chunk in chunks:
-                chunk = json.dumps(chunk)
-                ip_param = SPU_RD_InsertRobotStatsDAModel(chunk, day)
-                BaseDA.execute("SPU_AIML_RD_InsertRobotStats", spu_aiml, ip_param, connection_spu)
-        #         results = BaseDA.execute("SPU_AIML_RD_InsertRobotStats", spu_aiml, ip_param, connection_spu)
-        # return results
+        try:
+            connection_spu = DataAccessConnection(spu_aiml)
+            chunks = [full_info_all_user[x:x + config.chunk_size] for x in \
+                        range(0, len(full_info_all_user), config.chunk_size)]
+            if config.insert_to_aiml:
+                for chunk in chunks:
+                    chunk = json.dumps(chunk)
+                    ip_param = SPU_RD_InsertRobotStatsDAModel(chunk, day)
+                    BaseDA.execute("SPU_AIML_RD_InsertRobotStats", spu_aiml, ip_param, connection_spu)
+            #         results = BaseDA.execute("SPU_AIML_RD_InsertRobotStats", spu_aiml, ip_param, connection_spu)
+            # return results
+        except Exception as e:
+            message = "%s | %s | ERROR | phase Interaction_with_SPU_DB | function insert_robot_user_to_DB : %s %s" % (config.app_name, 
+                                                                                                                        config.ENV, 
+                                                                                                                        type(e).__name__, 
+                                                                                                                        e.args)
+            print(message)
+            logging.error(message)
+            if config.agree_to_send_message:
+                Telegram_send_message(message)
+            raise ValueError
+
+    @staticmethod
+    def compute_robot_for_pushing_to_CTS(day):
+        try:
+            connection_spu = DataAccessConnection(spu_aiml)
+            # chunks = [full_info_all_user[x:x + config.chunk_size] for x in \
+            #             range(0, len(full_info_all_user), config.chunk_size)]
+            if config.insert_to_aiml:
+                # for chunk in chunks:
+                    # chunk = json.dumps(chunk)
+                ip_param = SPU_AIML_RD_ComputeRobotUsersDAModel(day)
+                results = BaseDA.execute("SPU_AIML_RD_ComputeRobotUsers", spu_aiml, ip_param, connection_spu)
+                results = results[0]
+                df = pd.DataFrame(results, columns = ["C", "R", "LR"])
+                gonna_be_pushed_to_CTS = df.to_dict(orient = 'records')
+                return gonna_be_pushed_to_CTS
+        except Exception as e:
+            message = "%s | %s | ERROR | phase Interaction_with_SPU_DB | function compute_robot_for_pushing_to_CTS : %s %s" % (config.app_name, 
+                                                                                                                                config.ENV, 
+                                                                                                                                type(e).__name__, 
+                                                                                                                                e.args)
+            print(message)
+            logging.error(message)
+            if config.agree_to_send_message:
+                Telegram_send_message(message)
+            raise ValueError
+    
+    @staticmethod
+    def insert_robot_user_to_CTS(full_info_all_user):
+        try:
+            connection_cts = DataAccessConnection(cts_datacenter)
+            chunks = [full_info_all_user[x:x + config.chunk_size] for x in \
+                        range(0, len(full_info_all_user), config.chunk_size)]
+            if config.insert_to_cts:
+                for chunk in chunks:
+                    chunk = json.dumps(chunk)
+                    ip_param = CTS_DC_RobotDetection_InsertDAModel(chunk)
+                    BaseDA.execute("CTS_DC_RobotDetection_Insert", cts_datacenter, ip_param, connection_cts)
+        except Exception as e:
+            message = "%s | %s | ERROR | phase Interaction_with_CTS_DC | function insert_robot_user_to_CTS : %s %s" % (config.app_name, 
+                                                                                                                        config.ENV, 
+                                                                                                                        type(e).__name__, 
+                                                                                                                        e.args)
+            print(message)
+            logging.error(message)
+            if config.agree_to_send_message:
+                Telegram_send_message(message)
+            raise ValueError
 
     # @staticmethod
     # def get_distinct_robot_user():
@@ -73,14 +134,26 @@ class Robot_Detection_Manager():
     #     return robot_users
 
     @staticmethod
-    def prepare_data(data_file):
-        day = data_file.split(".")[0]
-        Robot_Detection_Manager.create_necessary_folders(day)          
-        data = pd.read_csv(config.root + config.data_path + data_file)
-        data = data.sort_values("transdate")
-        data = data.reset_index(drop = True)
-        ls = data.custid.unique()
-        return day, ls, data, [], []
+    # def prepare_data(data_files, day, is_used_full_data = True, limit = 500):
+    def prepare_data(data_file, day):
+        try:
+            # day = data_file.split(".")[0]
+            Robot_Detection_Manager.create_necessary_folders(day)          
+            data = pd.read_csv(config.root + config.data_path + data_file)
+            data = data.sort_values("transdate")
+            data = data.reset_index(drop = True)
+            ls = data.custid.unique()
+            return ls, data, [], []
+        except Exception as e:
+            message = "%s | %s | ERROR | phase Reading_Data | function prepare_data : %s %s" % (config.app_name, 
+                                                                                                config.ENV, 
+                                                                                                type(e).__name__, 
+                                                                                                e.args)
+            print(message)
+            logging.error(message)
+            if config.agree_to_send_message:
+                Telegram_send_message(message)
+            raise ValueError
     
     @staticmethod
     def check_constraints_for_clustering(X):
@@ -136,72 +209,165 @@ class Robot_Detection_Manager():
     @staticmethod
     def detect_by_New_method(day, ls, data, full_info_all_user_TableA, full_info_all_user_TableB, 
                             minimum_suspicious_transID, data_for_verification_got_saved, is_assigned_to_PeriodRange = 0):
-        for custid in tqdm(ls, desc = f"New Method | Robot Detection is running for {day}"):
-            preparator = Prepare_Data_for_each_user(custid)
-            _, _, cus_data = preparator.run(config.window_size, "%Y-%m-%d %H:%M:%S.%f", data, config.is_clustered_by_MBL)
-            extraordinary_signal = 0
+        try:
+            for custid in tqdm(ls, desc = f"New Method | Robot Detection is running for {day}"):
+                preparator = Prepare_Data_for_each_user(custid)
+                _, _, cus_data = preparator.run(config.window_size, 
+                                                "%Y-%m-%d %H:%M:%S.%f", 
+                                                data,
+                                                config.is_detected_by_new_method, 
+                                                config.is_clustered_by_MBL)
+                extraordinary_signal = 0
 
-            # ============================ Used for debug ============================
-            # if custid == 44839688:
-            #     extraordinary_signal = 1
-            # ============================ Used for debug ============================
+                # ============================ Used for debug ============================
+                # if custid == 44839688:
+                #     extraordinary_signal = 1
+                # ============================ Used for debug ============================
 
-            detecting_outcomes = Supplementary_rules.detect_by_TSSM(cus_data, config.based_on_STD, extraordinary_signal)
-            if detecting_outcomes is None:
-                continue
-            best_combination, easy_to_see, num_suspicious_transID, period_chain, robot_stats_info = detecting_outcomes
-            if num_suspicious_transID <= minimum_suspicious_transID:
-                continue
-            if is_assigned_to_PeriodRange:
-                # gonna_be_inserted_to_TableA_data, gonna_be_inserted_to_TableB_data = assign_into_PeriodRange(custid, best_combination, 
-                #                                                                                             period_chain, robot_stats_info)
-                gonna_be_inserted_to_DB_data = assign_into_PeriodRange(custid, best_combination, period_chain, robot_stats_info)
-                                                                                                            
-                if extraordinary_signal:
-                    # print("\ngonna_be_inserted_to_TableA_data = " + str(gonna_be_inserted_to_TableA_data),
-                    #     "\ngonna_be_inserted_to_TableB_data = " + str(gonna_be_inserted_to_TableB_data))
-                    print("\ngonna_be_inserted_to_DB_data = " + str(gonna_be_inserted_to_DB_data))
-                        
-            else:
-                gonna_be_inserted_to_DB_data = {"C":int(custid), "M":0, "B":0, "LI":0, 
-                                                "ISP":"", "DM":"", "TS":best_combination, "PC": period_chain}
-            if data_for_verification_got_saved:
-                Data_Verification.get_CSV_format_data(custid, day, data, best_combination, None, None, config, 0, easy_to_see)
-            # full_info_all_user_TableA.append(gonna_be_inserted_to_TableA_data)
-            # full_info_all_user_TableB.append(gonna_be_inserted_to_TableB_data)
-            full_info_all_user_TableA += gonna_be_inserted_to_DB_data
-        # return full_info_all_user_TableA, full_info_all_user_TableB
-        return full_info_all_user_TableA
+                detecting_outcomes = Supplementary_rules.detect_by_TSSM(cus_data, config.based_on_STD, extraordinary_signal)
+                if detecting_outcomes is None:
+                    continue
+                best_combination, easy_to_see, num_suspicious_transID, period_chain, robot_stats_info = detecting_outcomes
+                if num_suspicious_transID <= minimum_suspicious_transID:
+                    continue
+                if is_assigned_to_PeriodRange:
+                    # gonna_be_inserted_to_TableA_data, gonna_be_inserted_to_TableB_data = assign_into_PeriodRange(custid, best_combination, 
+                    #                                                                                             period_chain, robot_stats_info)
+                    gonna_be_inserted_to_DB_data = assign_into_PeriodRange(custid, best_combination, period_chain, robot_stats_info)
+                                                                                                                
+                    if extraordinary_signal:
+                        # print("\ngonna_be_inserted_to_TableA_data = " + str(gonna_be_inserted_to_TableA_data),
+                        #     "\ngonna_be_inserted_to_TableB_data = " + str(gonna_be_inserted_to_TableB_data))
+                        print("\ngonna_be_inserted_to_DB_data = " + str(gonna_be_inserted_to_DB_data))
+                            
+                else:
+                    gonna_be_inserted_to_DB_data = {"C":int(custid), "M":0, "B":0, "LI":0, 
+                                                    "ISP":"", "DM":"", "TS":best_combination, "PC": period_chain}
+                if data_for_verification_got_saved:
+                    Data_Verification.get_CSV_format_data(custid, day, data, best_combination, None, None, config, 0, easy_to_see)
+                # full_info_all_user_TableA.append(gonna_be_inserted_to_TableA_data)
+                # full_info_all_user_TableB.append(gonna_be_inserted_to_TableB_data)
+                full_info_all_user_TableA += gonna_be_inserted_to_DB_data
+            # return full_info_all_user_TableA, full_info_all_user_TableB
+            return full_info_all_user_TableA
+        except Exception as e:
+            message = "%s | %s | ERROR | phase Insights_Extraction_by_Users | function detect_by_New_method : %s %s" % (config.app_name, 
+                                                                                                                        config.ENV, 
+                                                                                                                        type(e).__name__, 
+                                                                                                                        e.args)
+            print(message)
+            logging.error(message)
+            if config.agree_to_send_message:
+                Telegram_send_message(message)
+            raise ValueError
+    
+    def check_aimed_directories(kind, day_in_new_format):
+        candidates = []
+        aimed_directories = config.aimed_directories
+        aimed_directory = aimed_directories[kind]
+        group = os.listdir(config.root + aimed_directory)
+        for fn in group:
+            if fn.startswith("bettrans_" + day_in_new_format) and fn.endswith(".csv"):
+                candidates.append(fn)
+        if len(candidates) > 1400:
+            data = pd.concat([pd.read_csv(config.root + aimed_directory + fn, skipfooter = 1, skiprows = [1]) for fn in candidates]
+                            , ignore_index = True)
+            return data
+        else:
+            return None
+    
+    def generate_data(day):
+        print("day = " + day)
+        datetime_object = datetime.datetime.strptime(day, '%Y-%m-%d')
+        day_in_new_format = datetime_object.strftime('%m_%d_%Y')
+        if config.ENV == "LOCAL":
+            data_files = os.listdir(config.root + config.data_path)
+            data = pd.concat([pd.read_csv(config.root + config.data_path + fn, skipfooter = 1, skiprows = [1]) for fn in data_files \
+                                if fn.startswith("bettrans_" + day_in_new_format) and fn.endswith(".csv")]
+                                , ignore_index = True)
+        else:
+            data = Robot_Detection_Manager.check_aimed_directories("1st", day_in_new_format)
+            if data is None:
+                data = Robot_Detection_Manager.check_aimed_directories("2nd", day_in_new_format)
+                if data is None:
+                    message = "%s | %s | ERROR | phase Reading_data | function generate_data : %s" % (config.app_name, 
+                                                                                                    config.ENV, 
+                                                                                                    "There is not enough data")
+                    print(message)
+                    logging.error(message)
+                    if config.agree_to_send_message:
+                        Telegram_send_message(message)
+                    raise ValueError
+        print("HEAD of data\n", data.head())
+        print("TAIL of data\n", data.tail())
+        data.to_csv(config.root + config.data_path + day + ".csv", index = False)
 
     @staticmethod
-    def run():
+    def run(day = ""):
         start_running = time.time()
         logging.basicConfig(filename =  config.root + config.save_dir_log + config.log_name, level = logging.INFO)
-        data_files = sorted(os.listdir(config.root + config.data_path))
-        # for data_file in data_files[24:25]: # for quick test of programm
-        for data_file in data_files:
-            day, ls, data, full_info_all_user_TableA, full_info_all_user_TableB = Robot_Detection_Manager.prepare_data(data_file)  
-            ls = ls[:200] # for quick test of programm    
-            if config.is_detected_by_new_method:
-                # full_info_all_user_TableA, full_info_all_user_TableB = Robot_Detection_Manager.detect_by_New_method(day, ls, data, 
-                #                                                                                                     full_info_all_user_TableA,
-                #                                                                                                     full_info_all_user_TableB, 
-                #                                                                                                     config.minimum_suspicious_transID,
-                #                                                                                                     config.is_assigned_to_PeriodRange)
-                full_info_all_user = Robot_Detection_Manager.detect_by_New_method(  day, ls, data, 
-                                                                                    full_info_all_user_TableA,
-                                                                                    full_info_all_user_TableB, 
-                                                                                    config.minimum_suspicious_transID,
-                                                                                    config.data_for_verification_got_saved,
-                                                                                    config.is_assigned_to_PeriodRange
-                                                                                )
-            else:
-                full_info_all_user = Robot_Detection_Manager.detect_by_Old_method(day, ls, data, full_info_all_user, 
-                                                                                    config.is_clustered_by_MBL,
-                                                                                    config.is_save_all_in_one)
-            print("\nfull_info_all_user = " + str(full_info_all_user))
-            Robot_Detection_Manager.insert_robot_user_to_DB(full_info_all_user, day)
-            # results = Robot_Detection_Manager.insert_robot_user_to_DB(full_info_all_user, day)
-            # print("\nresults = " + str(results))
-            print("\nNumber of robot users for %s has been added is %s\n" % (day, len(full_info_all_user)))
+        now = datetime.datetime.now()
+        current_time = now.strftime("%d/%m/%Y %H:%M:%S")
+        if day == "":
+            today = now.strftime("%Y-%m-%d")
+            datetime_object = datetime.datetime.strptime(today, '%Y-%m-%d')
+            day = datetime_object + datetime.timedelta(days = -1)
+            day = day.strftime('%Y-%m-%d')
+        message = "%s | %s | INFO | Running for %s" % (config.app_name, config.ENV, day)
+        if config.agree_to_send_message:
+            Telegram_send_message(message)
+        message = f"======================================== {current_time} | Running for {day} ========================================"
+        print(message)
+        logging.info(message)     
+        # data_files = sorted(os.listdir(config.root + config.data_path))
+        # for data_file in data_files[:1]: # for quick test of programm
+        # for data_file in data_files:
+        # ls, data, full_info_all_user_TableA, full_info_all_user_TableB = Robot_Detection_Manager.prepare_data(data_files, day, True, 5000)
+        Robot_Detection_Manager.generate_data(day)
+        ls, data, full_info_all_user_TableA, full_info_all_user_TableB = Robot_Detection_Manager.prepare_data(day + ".csv", day)
+        message = "%s | %s | INFO | No. Transactions = %s | No. Customers = %s" % (config.app_name, config.ENV, len(data), len(ls))
+        if config.agree_to_send_message:
+            Telegram_send_message(message)
+        print(message)
+        logging.info(message)     
+        if config.is_detected_by_new_method:
+            # full_info_all_user_TableA, full_info_all_user_TableB = Robot_Detection_Manager.detect_by_New_method(day, ls, data, 
+            #                                                                                                     full_info_all_user_TableA,
+            #                                                                                                     full_info_all_user_TableB, 
+            #                                                                                                     config.minimum_suspicious_transID,
+            #                                                                                                     config.is_assigned_to_PeriodRange)
+            full_info_all_user = Robot_Detection_Manager.detect_by_New_method(  day, ls, data, 
+                                                                                full_info_all_user_TableA,
+                                                                                full_info_all_user_TableB, 
+                                                                                config.minimum_suspicious_transID,
+                                                                                config.data_for_verification_got_saved,
+                                                                                config.is_assigned_to_PeriodRange
+                                                                            )
+        # else:
+        #     full_info_all_user = Robot_Detection_Manager.detect_by_Old_method(day, ls, data, full_info_all_user, 
+        #                                                                         config.is_clustered_by_MBL,
+        #                                                                         config.is_save_all_in_one)
+        # print("\nfull_info_all_user = " + str(full_info_all_user))
+        Robot_Detection_Manager.insert_robot_user_to_DB(full_info_all_user, day)
+        # print("\nNumber of Suspicious users for %s has been added is %s\n" % (day, len(full_info_all_user)))
+        message = "%s | %s | INFO |  %s Suspicious users were pushed to SPU" % (config.app_name, config.ENV, len(full_info_all_user))
+        if config.agree_to_send_message:
+            Telegram_send_message(message)
+        print(message)
+        logging.info(message)
+        gonna_be_pushed_to_CTS = Robot_Detection_Manager.compute_robot_for_pushing_to_CTS(day)
+        # print("\ngonna_be_pushed_to_CTS = " + str(gonna_be_pushed_to_CTS))
+        Robot_Detection_Manager.insert_robot_user_to_CTS(gonna_be_pushed_to_CTS)
+        # print("\nNumber of robot users for %s has been pushed to CTS is %s\n" % (day, len(gonna_be_pushed_to_CTS)))
         print("\nTOTAL IMPLEMENTATION TIME = %.0f seconds" % (time.time() - start_running))
+        message = "%s | %s | INFO | Completed in %.2f seconds with %s robot users pushed to CTS" % (config.app_name, 
+                                                                                                    config.ENV, 
+                                                                                                    time.time() - start_running,
+                                                                                                    len(gonna_be_pushed_to_CTS))
+        if config.agree_to_send_message:
+            Telegram_send_message(message)
+        now = datetime.datetime.now()
+        current_time = now.strftime("%d/%m/%Y %H:%M:%S")
+        message = f"======================================== {current_time} | Done for {day} ========================================"
+        print(message)
+        logging.info(message)

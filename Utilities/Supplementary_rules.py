@@ -1,8 +1,12 @@
 import numpy as np
 import pandas as pd
+import logging
 from Utilities.Utilities import merge_and_make_distinct_TransID_Sequences, substract_2_sucessive_elements_and_merge_transID
 from Utilities.Utilities import add_2_sucessive_elements_and_merge_transID, check_pattern
 from Utilities.Utilities import find_chain_of_periods
+from Configuration.Configuration import config
+from Helper.notify import Telegram_send_message
+
 class Supplementary_rules():
     @staticmethod
     def is_Ticket_placement_so_fast(transformed_cus_data, cus_data, quickly_test_by_MBL):
@@ -34,38 +38,53 @@ class Supplementary_rules():
     
     @staticmethod
     def detect_by_TSSM(cus_data, based_on_STD, extraordinary_signal = None):
-        coupled_transid_List, time_interval_List = cus_data[1]
-        # cus_data = pd.DataFrame()
-        # cus_data["2_element_TransID_Sequence"] = coupled_transid_List
-        # cus_data["first_order_Time_Difference"] = time_interval_List
-        coupled_transid_List, time_interval_List = np.array(coupled_transid_List), np.array(time_interval_List)
-        Y, _ = check_pattern(coupled_transid_List, time_interval_List)
-        if extraordinary_signal:
-            print("time_interval_List = %s" % time_interval_List)
-        # _1st_filter = cus_data[cus_data["first_order_Time_Difference"] <= 1]
-        # coupled_transid_List = _1st_filter["2_element_TransID_Sequence"].to_list()
-        sequence_Characterized, num_suspicious_transID = merge_and_make_distinct_TransID_Sequences(Y)
-        # print("\nsequence_Characterized = %s" % sequence_Characterized)
-        if sequence_Characterized == "":
-            # print("coupled_transid_List = %s" % coupled_transid_List, "time_interval_List = %s" % time_interval_List, "\n\n", sep = "\n")
-            # Find Period Chains
-            period_chain, robot_stats_info = find_chain_of_periods(coupled_transid_List, time_interval_List, based_on_STD, extraordinary_signal)
-            if period_chain == "":
-                return None
-            # ============================================================================================================
-            coupled_transid_List, time_interval_List = substract_2_sucessive_elements_and_merge_transID(coupled_transid_List, 
-                                                                                                        time_interval_List)
-            Z, _ = check_pattern(coupled_transid_List, time_interval_List)
-            sequence_Characterized, num_suspicious_transID = merge_and_make_distinct_TransID_Sequences(Z)
-            # ============================================================================================================
-            # coupled_transid_List, time_interval_List = add_2_sucessive_elements_and_merge_transID(coupled_transid_List, 
-            #                                                                                         time_interval_List)
-            # T, _ = check_pattern(coupled_transid_List, time_interval_List, is_third_order = 1)
-            # sequence_Characterized, num_suspicious_transID = merge_and_make_distinct_TransID_Sequences(T)
-            # ============================================================================================================           
+        try:
+            coupled_transid_List, time_interval_List = cus_data[1]
+            # cus_data = pd.DataFrame()
+            # cus_data["2_element_TransID_Sequence"] = coupled_transid_List
+            # cus_data["first_order_Time_Difference"] = time_interval_List
+            coupled_transid_List, time_interval_List = np.array(coupled_transid_List), np.array(time_interval_List)
+            Y, _ = check_pattern(coupled_transid_List, time_interval_List, "Y")
+            if extraordinary_signal:
+                print("time_interval_List = %s" % time_interval_List)
+            # _1st_filter = cus_data[cus_data["first_order_Time_Difference"] <= 1]
+            # coupled_transid_List = _1st_filter["2_element_TransID_Sequence"].to_list()
+            sequence_Characterized, num_suspicious_transID = merge_and_make_distinct_TransID_Sequences(Y, "Y")
+            # print("\nsequence_Characterized = %s" % sequence_Characterized)
             if sequence_Characterized == "":
-                return None
-            # else:
-            return sequence_Characterized, 0, num_suspicious_transID, period_chain , robot_stats_info
-        else:
-            return sequence_Characterized, 1, num_suspicious_transID , "", {}
+                # print("coupled_transid_List = %s" % coupled_transid_List, "time_interval_List = %s" % time_interval_List, "\n\n", sep = "\n")
+                # Find Period Chains
+                period_chain, robot_stats_info = find_chain_of_periods(coupled_transid_List, 
+                                                                        time_interval_List, 
+                                                                        based_on_STD,
+                                                                        "Y", 
+                                                                        extraordinary_signal)
+                if period_chain == "":
+                    return None
+                # ============================================================================================================
+                coupled_transid_List, time_interval_List = substract_2_sucessive_elements_and_merge_transID(coupled_transid_List, 
+                                                                                                            time_interval_List)
+                Z, _ = check_pattern(coupled_transid_List, time_interval_List, "Z")
+                sequence_Characterized, num_suspicious_transID = merge_and_make_distinct_TransID_Sequences(Z, "Z")
+                # ============================================================================================================
+                # coupled_transid_List, time_interval_List = add_2_sucessive_elements_and_merge_transID(coupled_transid_List, 
+                #                                                                                         time_interval_List)
+                # T, _ = check_pattern(coupled_transid_List, time_interval_List, is_third_order = 1)
+                # sequence_Characterized, num_suspicious_transID = merge_and_make_distinct_TransID_Sequences(T)
+                # ============================================================================================================           
+                if sequence_Characterized == "":
+                    return None
+                # else:
+                return sequence_Characterized, 0, num_suspicious_transID, period_chain , robot_stats_info
+            else:
+                return sequence_Characterized, 1, num_suspicious_transID , "", {}
+        except Exception as e:
+            message = "%s | %s | ERROR | phase Insights_Extraction_by_Users | stage Running_Algorithm | function detect_by_TSSM : %s %s" % (config.app_name, 
+                                                                                                                                            config.ENV, 
+                                                                                                                                            type(e).__name__, 
+                                                                                                                                            e.args)
+            print(message)
+            logging.error(message)
+            if config.agree_to_send_message:
+                Telegram_send_message(message)
+            raise ValueError

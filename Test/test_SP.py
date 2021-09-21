@@ -2,6 +2,7 @@
 import sys
 sys.path.append("C:/Users/diego.nguyen/diegoProj/Follow_darius/robotdetection/")
 from Robot_Detection_Manager.Robot_Detection_Manager import Robot_Detection_Manager
+import pandas as pd
 
 # robot_users = Robot_Detection_Manager.get_distinct_robot_user()
 # print("Type of robot_users = %s" % type(robot_users)) # class List
@@ -26,10 +27,22 @@ from Robot_Detection_Manager.Robot_Detection_Manager import Robot_Detection_Mana
 
     #    }]
 
-data = [{'C': 51218463, 'R': 4, 'SC': 1, 'TL': '112341011419,112341008298,112341014175'}, 
-        {'C': 51218463, 'R': 8, 'SC': 1, 'TL': '112344291744,112344280421,112344285946'}]
-day = "2021-06-25"
+# data = [{'C': 51218463, 'R': 4, 'SC': 1, 'TL': '112341011419,112341008298,112341014175'}, 
+#         {'C': 51218463, 'R': 8, 'SC': 1, 'TL': '112344291744,112344280421,112344285946'}]
+day = "20210901"
 
-results = Robot_Detection_Manager.insert_robot_user_to_DB(data, day)
+results = Robot_Detection_Manager.compute_robot_for_pushing_to_CTS(day)
+
+print("\nType = " + str(type(results)))
 
 print("\nresults = " + str(results))
+
+# results = results[0]
+
+# df = pd.DataFrame(results, columns = ["C", "R", "LR"])
+
+# gonna_be_pushed_to_CTS = df.to_dict(orient = 'records')
+
+# print("\ngonna_be_pushed_to_CTS = " + str(gonna_be_pushed_to_CTS))
+
+Robot_Detection_Manager.insert_robot_user_to_CTS(results)

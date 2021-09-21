@@ -33,6 +33,11 @@ class Configuration(object):
         self.data_path = self.getDataStrConfig(
             self.config, 'DEFAULT', 'data_path')
         # self.backup = self.getDataStrConfig(self.config, 'DEFAULT', 'BACK_UP')
+        if self.ENV == "PRO":
+            # self.aimed_directory_1st = self.getDataStrConfig(self.config, 'DEFAULT', 'aimed_directory_1st')
+            # self.aimed_directory_2nd = self.getDataStrConfig(self.config, 'DEFAULT', 'aimed_directory_2nd')
+            self.aimed_directories = {"1st":self.getDataStrConfig(self.config, 'DEFAULT', 'aimed_directory_1st'),
+                                    "2nd":self.getDataStrConfig(self.config, 'DEFAULT', 'aimed_directory_2nd')}
         self.quickly_test = self.getDataStrConfig(
             self.config, 'DEFAULT', 'quickly_test')
         self.easy_to_see = self.getDataStrConfig(
@@ -102,8 +107,14 @@ class Configuration(object):
         # define is transfer data to CTS
         self.chunk_size = int(self.getDataStrConfig(
             self.config, 'ACTION_DB', 'chunk_size'))
-        self.insert_to_aiml = self.getDataBooleanConfig(
-            self.config, 'ACTION_DB', 'insert_to_aiml')
+        self.insert_to_aiml = int(self.getDataBooleanConfig(
+            self.config, 'ACTION_DB', 'insert_to_aiml'))
+        self.insert_to_cts = int(self.getDataBooleanConfig(
+            self.config, 'ACTION_DB', 'insert_to_cts'))
+        
+        # Action Telegram
+        self.agree_to_send_message = int(self.getDataBooleanConfig(
+            self.config, 'ACTION_TELEGRAM', 'AGREE_TO_SEND_MESSAGE'))
 
 
     @classmethod
