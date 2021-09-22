@@ -262,45 +262,87 @@ class Robot_Detection_Manager():
             raise ValueError
     
     def check_aimed_directories(kind, day_in_new_format):
-        candidates = []
-        aimed_directories = config.aimed_directories
-        aimed_directory = aimed_directories[kind]
-        group = os.listdir(config.root + aimed_directory)
-        for fn in group:
-            if fn.startswith("bettrans_" + day_in_new_format) and fn.endswith(".csv"):
-                candidates.append(fn)
-        if len(candidates) > 1400:
-            data = pd.concat([pd.read_csv(config.root + aimed_directory + fn, skipfooter = 1, skiprows = [1]) for fn in candidates]
-                            , ignore_index = True)
-            return data
-        else:
-            return None
+        try:
+            partial_candidates = []
+            aimed_directories = config.aimed_directories
+            aimed_directory = aimed_directories[kind]
+            group = os.listdir(aimed_directory)
+            for fn in group:
+                if fn.startswith("bettrans_" + day_in_new_format) and fn.endswith(".csv"):
+                    partial_candidates.append(fn)
+            # if len(candidates) > minimum_files:
+            #     data = pd.concat([pd.read_csv(aimed_directory + fn, skipfooter = 1, skiprows = [1]) for fn in candidates]
+            #                     , ignore_index = True)
+            return partial_candidates, aimed_directory
+        except Exception as e:
+            message = "%s | %s | ERROR | phase Reading_Data | function check_aimed_directories : %s %s" % (config.app_name, 
+                                                                                                            config.ENV, 
+                                                                                                            type(e).__name__, 
+                                                                                                            e.args)
+            print(message)
+            logging.error(message)
+            if config.agree_to_send_message:
+                Telegram_send_message(message)
+            raise ValueError
     
     def generate_data(day):
-        print("day = " + day)
-        datetime_object = datetime.datetime.strptime(day, '%Y-%m-%d')
-        day_in_new_format = datetime_object.strftime('%m_%d_%Y')
-        if config.ENV == "LOCAL":
-            data_files = os.listdir(config.root + config.data_path)
-            data = pd.concat([pd.read_csv(config.root + config.data_path + fn, skipfooter = 1, skiprows = [1]) for fn in data_files \
-                                if fn.startswith("bettrans_" + day_in_new_format) and fn.endswith(".csv")]
+        try:
+            print("day = " + day)
+            datetime_object = datetime.datetime.strptime(day, '%Y-%m-%d')
+            day_in_new_format = datetime_object.strftime('%m_%d_%Y')
+            if config.ENV == "LOCAL":
+                data_files = os.listdir(config.root + config.data_path)
+                candidates = []
+                for fn in data_files:
+                    if fn.startswith("bettrans_" + day_in_new_format) and fn.endswith(".csv"):
+                        candidates.append(fn)
+                num_files = len(candidates)
+                data = pd.concat([pd.read_csv(config.root + config.data_path + fn, skipfooter = 1, skiprows = [1]) for fn in candidates]
                                 , ignore_index = True)
-        else:
-            data = Robot_Detection_Manager.check_aimed_directories("1st", day_in_new_format)
-            if data is None:
-                data = Robot_Detection_Manager.check_aimed_directories("2nd", day_in_new_format)
-                if data is None:
-                    message = "%s | %s | ERROR | phase Reading_data | function generate_data : %s" % (config.app_name, 
-                                                                                                    config.ENV, 
-                                                                                                    "There is not enough data")
+            
+            else:
+                # total_candidates = []
+                partial_candidates_1st, aimed_directory_1st = Robot_Detection_Manager.check_aimed_directories("1st", day_in_new_format)
+                # total_candidates += partial_candidates
+                # if data is None:
+                partial_candidates_2nd, aimed_directory_2nd = Robot_Detection_Manager.check_aimed_directories("2nd", day_in_new_format)
+                num_files = len(partial_candidates_1st) + len(partial_candidates_2nd)
+                if num_files < config.minimum_files:
+                    message = "%s | %s | ERROR | phase Reading_data | function generate_data : %s because of number of files < %s" % (config.app_name, 
+                                                                                                                                    config.ENV, 
+                                                                                                                                    "There is not enough data",
+                                                                                                                                    config.minimum_files)
                     print(message)
                     logging.error(message)
                     if config.agree_to_send_message:
                         Telegram_send_message(message)
                     raise ValueError
-        print("HEAD of data\n", data.head())
-        print("TAIL of data\n", data.tail())
-        data.to_csv(config.root + config.data_path + day + ".csv", index = False)
+                if len(partial_candidates_1st) > 0:
+                    data_1st = pd.concat([pd.read_csv(aimed_directory_1st + fn, skipfooter = 1, skiprows = [1]) for fn in partial_candidates_1st], 
+                                        ignore_index = True)
+                else:
+                    data_1st = pd.DataFrame()
+                if len(partial_candidates_2nd) > 0:
+                    data_2nd = pd.concat([pd.read_csv(aimed_directory_2nd + fn, skipfooter = 1, skiprows = [1]) for fn in partial_candidates_2nd], 
+                                        ignore_index = True)
+                else:
+                    data_2nd = pd.DataFrame()
+                data = pd.concat([data_1st, data_2nd], ignore_index = True)
+                
+            print("HEAD of data\n", data.head())
+            print("TAIL of data\n", data.tail())
+            data.to_csv(config.root + config.data_path + day + ".csv", index = False)
+            return num_files
+        except Exception as e:
+            message = "%s | %s | ERROR | phase Reading_Data | function generate_data : %s %s" % (config.app_name, 
+                                                                                                config.ENV, 
+                                                                                                type(e).__name__, 
+                                                                                                e.args)
+            print(message)
+            logging.error(message)
+            if config.agree_to_send_message:
+                Telegram_send_message(message)
+            raise ValueError
 
     @staticmethod
     def run(day = ""):
@@ -311,7 +353,7 @@ class Robot_Detection_Manager():
         if day == "":
             today = now.strftime("%Y-%m-%d")
             datetime_object = datetime.datetime.strptime(today, '%Y-%m-%d')
-            day = datetime_object + datetime.timedelta(days = -1)
+            day = datetime_object + datetime.timedelta(days = - config.num_days_backward)
             day = day.strftime('%Y-%m-%d')
         message = "%s | %s | INFO | Running for %s" % (config.app_name, config.ENV, day)
         if config.agree_to_send_message:
@@ -323,9 +365,15 @@ class Robot_Detection_Manager():
         # for data_file in data_files[:1]: # for quick test of programm
         # for data_file in data_files:
         # ls, data, full_info_all_user_TableA, full_info_all_user_TableB = Robot_Detection_Manager.prepare_data(data_files, day, True, 5000)
-        Robot_Detection_Manager.generate_data(day)
+        num_files = Robot_Detection_Manager.generate_data(day)
         ls, data, full_info_all_user_TableA, full_info_all_user_TableB = Robot_Detection_Manager.prepare_data(day + ".csv", day)
-        message = "%s | %s | INFO | No. Transactions = %s | No. Customers = %s" % (config.app_name, config.ENV, len(data), len(ls))
+        ls = ls[:10000]
+        data = data[data.custid.isin(ls)]
+        message = "%s | %s | INFO | No. Files = %s | No. Transactions = %s | No. Customers = %s" % (config.app_name, 
+                                                                                                    config.ENV,
+                                                                                                    num_files, 
+                                                                                                    len(data), 
+                                                                                                    len(ls))
         if config.agree_to_send_message:
             Telegram_send_message(message)
         print(message)
@@ -359,13 +407,15 @@ class Robot_Detection_Manager():
         # print("\ngonna_be_pushed_to_CTS = " + str(gonna_be_pushed_to_CTS))
         Robot_Detection_Manager.insert_robot_user_to_CTS(gonna_be_pushed_to_CTS)
         # print("\nNumber of robot users for %s has been pushed to CTS is %s\n" % (day, len(gonna_be_pushed_to_CTS)))
-        print("\nTOTAL IMPLEMENTATION TIME = %.0f seconds" % (time.time() - start_running))
+        #print("\nTOTAL IMPLEMENTATION TIME = %.0f seconds" % (time.time() - start_running))
         message = "%s | %s | INFO | Completed in %.2f seconds with %s robot users pushed to CTS" % (config.app_name, 
                                                                                                     config.ENV, 
                                                                                                     time.time() - start_running,
                                                                                                     len(gonna_be_pushed_to_CTS))
         if config.agree_to_send_message:
             Telegram_send_message(message)
+        print(message)
+        logging.info(message)
         now = datetime.datetime.now()
         current_time = now.strftime("%d/%m/%Y %H:%M:%S")
         message = f"======================================== {current_time} | Done for {day} ========================================"
