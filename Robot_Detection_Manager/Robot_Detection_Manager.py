@@ -285,20 +285,24 @@ class Robot_Detection_Manager():
                 Telegram_send_message(message)
             raise ValueError
     
-    def generate_data(day):
+    def generate_data(day, is_data_contained_in_a_single_file):
         try:
             print("day = " + day)
             datetime_object = datetime.datetime.strptime(day, '%Y-%m-%d')
             day_in_new_format = datetime_object.strftime('%m_%d_%Y')
             if config.ENV == "LOCAL":
-                data_files = os.listdir(config.root + config.data_path)
-                candidates = []
-                for fn in data_files:
-                    if fn.startswith("bettrans_" + day_in_new_format) and fn.endswith(".csv"):
-                        candidates.append(fn)
-                num_files = len(candidates)
-                data = pd.concat([pd.read_csv(config.root + config.data_path + fn, skipfooter = 1, skiprows = [1]) for fn in candidates]
-                                , ignore_index = True)
+                if is_data_contained_in_a_single_file:
+                    num_files = 1
+                    data = pd.read_csv(config.root + config.data_path + day + ".csv")
+                else:
+                    data_files = os.listdir(config.root + config.data_path)
+                    candidates = []
+                    for fn in data_files:
+                        if fn.startswith("bettrans_" + day_in_new_format) and fn.endswith(".csv"):
+                            candidates.append(fn)
+                    num_files = len(candidates)
+                    data = pd.concat([pd.read_csv(config.root + config.data_path + fn, skipfooter = 1, skiprows = [1]) for fn in candidates]
+                                    , ignore_index = True)
             
             else:
                 # total_candidates = []
@@ -345,7 +349,7 @@ class Robot_Detection_Manager():
             raise ValueError
 
     @staticmethod
-    def run(day = ""):
+    def run(day = "", is_data_contained_in_a_single_file = 0):
         start_running = time.time()
         logging.basicConfig(filename =  config.root + config.save_dir_log + config.log_name, level = logging.INFO)
         now = datetime.datetime.now()
@@ -365,10 +369,11 @@ class Robot_Detection_Manager():
         # for data_file in data_files[:1]: # for quick test of programm
         # for data_file in data_files:
         # ls, data, full_info_all_user_TableA, full_info_all_user_TableB = Robot_Detection_Manager.prepare_data(data_files, day, True, 5000)
-        num_files = Robot_Detection_Manager.generate_data(day)
+        num_files = Robot_Detection_Manager.generate_data(day, is_data_contained_in_a_single_file)
         ls, data, full_info_all_user_TableA, full_info_all_user_TableB = Robot_Detection_Manager.prepare_data(day + ".csv", day)
-        ls = ls[:10000]
-        data = data[data.custid.isin(ls)]
+        if config.is_program_being_tested:
+            ls = ls[:config.num_desired_to_test]
+            data = data[data.custid.isin(ls)]
         message = "%s | %s | INFO | No. Files = %s | No. Transactions = %s | No. Customers = %s" % (config.app_name, 
                                                                                                     config.ENV,
                                                                                                     num_files, 

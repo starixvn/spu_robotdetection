@@ -49,6 +49,8 @@ class Configuration(object):
         # define GroupBetting config
         if self.ENV == "PRO":
             self.minimum_files = int(self.getDataStrConfig(self.config, 'ROBOT_DETECTION_CONFIG', 'minimum_files'))
+        self.num_desired_to_test = int(self.getDataStrConfig(self.config, 'ROBOT_DETECTION_CONFIG', 'num_desired_to_test'))
+        self.is_program_being_tested = int(self.getDataStrConfig(self.config, 'ROBOT_DETECTION_CONFIG', 'is_program_being_tested'))
         self.num_days_backward = int(self.getDataStrConfig(self.config, 'ROBOT_DETECTION_CONFIG', 'num_days_backward'))
         self.decisive_MaSS_lv1 = float(self.getDataStrConfig(
             self.config, 'ROBOT_DETECTION_CONFIG', 'decisive_MaSS_lv1'))
